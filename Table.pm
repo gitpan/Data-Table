@@ -13,10 +13,11 @@ require AutoLoader;
 @EXPORT = qw(
 	
 );
-$VERSION = '1.18';
+$VERSION = '1.19';
 
 sub new {
-  my ($class, $data, $header, $type, $enforceCheck) = @_;
+  my ($pkg, $data, $header, $type, $enforceCheck) = @_;
+  my $class = ref($pkg) || $pkg;
   $type = 0 unless defined($type); 
   $header=[] unless defined($header);
   $data=[] unless defined($data);
@@ -88,9 +89,11 @@ sub tsvEscape {
 
 # output table in CSV format
 sub csv {
-  my $self=shift;
+  my ($self, $header)=@_;
   my ($status, @t);
-  my $s=join(",", map {csvEscape($_)} @{$self->{header}}) . "\n";
+  my $s = '';
+  $header=1 unless defined($header);
+  $s=join(",", map {csvEscape($_)} @{$self->{header}}) . "\n" if $header;
 ######  $self->rotate if $self->{type};
   if ($self->{data}) {
     $self->rotate() if ($self->{type});
@@ -104,9 +107,11 @@ sub csv {
 
 # output table in TSV format
 sub tsv {
-  my $self=shift;
+  my ($self, $header)=@_;
   my ($status, @t);
-  my $s=join("\t", map {tsvEscape($_)} @{$self->{header}}) . "\n";
+  my $s = '';
+  $header=1 unless defined($header);
+  $s=join("\t", map {tsvEscape($_)} @{$self->{header}}) . "\n" if $header;
 ######  $self->rotate if $self->{type};
   if ($self->{data}) {
     $self->rotate() if ($self->{type});
@@ -344,6 +349,19 @@ sub row {
   } else {
     return @{$data->[$rowIdx]};
   }
+}
+
+sub rowHashRef {
+  my ($self, $rowIdx) = @_;
+  my $data = $self->{data};
+  return undef unless defined $self->checkOldRow($rowIdx);
+  my $header=$self->{header};
+  my $one = {};
+  for (my $i = 0; $i < scalar @$header; $i++) {
+    $one->{$header->[$i]} = ($self->{type})?
+      $self->{data}->[$i]->[$rowIdx]:$self->{data}->[$rowIdx]->[$i];
+  }
+  return $one;
 }
 
 sub colRef {
@@ -712,6 +730,11 @@ sub clone {
   return new Data::Table(\@newdata, \@newheader, $self->{type});
 }
 
+sub fromCSVi {
+  my $self = shift;
+  return fromCSV(@_);
+}
+
 sub fromCSV {
   my ($name, $header) = @_;
   $header = 1 unless defined($header);
@@ -787,6 +810,11 @@ sub parseCSV {
   return \@parts;
 }
 
+sub fromTSVi {
+  my $self = shift;
+  return fromTSV(@_);
+}
+
 sub fromTSV {
   my ($name, $header) = @_;
   my %ESC = ( '0'=>"\0", 'n'=>"\n", 't'=>"\t", 'r'=>"\r", 'b'=>"\b",
@@ -833,12 +861,17 @@ sub fromTSV {
   return new Data::Table(\@data, \@header, 0);
 }
 
+sub fromSQLi {
+  my $self = shift;
+  return fromSQL(@_);
+}
+
 sub fromSQL {
   my ($dbh, $sql, $vars) = @_;
   my ($sth, $header, $t);
-  $sth = $dbh->prepare($sql) or die "Preparing: , ".$sth->errstr;
+  $sth = $dbh->prepare($sql) or die "Preparing: , ".$dbh::errstr;
   my @vars=() unless defined $vars;
-  $sth->execute(@vars) or die "Executing: , ".$sth->errstr;
+  $sth->execute(@$vars) or die "Executing: , ".$dbh::errstr;
 #  $Data::Table::ID = undef;
 #  $Data::Table::ID = $sth->{'mysql_insertid'};
   if ($sth->{NUM_OF_FIELDS}) {
@@ -863,7 +896,7 @@ __END__
 
 =head1 NAME
 
-Data::Table - Data type related to database tables, spreadsheets, CSV files, HTML table displays, etc.
+Data::Table - Data type related to database tables, spreadsheets, CSV/TSV files, HTML table displays, etc.
 
 =head1 SYNOPSIS
 
@@ -886,7 +919,7 @@ Data::Table - Data type related to database tables, spreadsheets, CSV files, HTM
   print $t->html;                       # Diplay a 'portrait' HTML TABLE on web. 
 
   use DBI;
-  $dbh= DBI->connect("DBI:mysql:test", "test", "") or die $dbh->errstr;
+  $dbh= DBI->connect("DBI:mysql:test", "test", "") or die $DBI::errstr;
   my $minAge = 10;
   $t = Data::Table::fromSQL($dbh, "select * from mytable where age >= ?", [$minAge]);
 					# Construct a table form an SQL 
@@ -936,8 +969,8 @@ manipulating spreadsheet data among disk files, database, and Web
 publishing.
 
 A table object contains a header and a two-dimensional array of scalars.
-Two class methods Data::Table::fromCSV and Data::Table::fromSQL allow users
-to create a table object from a CSV file or a database SQL selection in a snap.
+Three class methods Data::Table::fromCSV, Data::Table::fromTSV, and Data::Table::fromSQL allow users
+to create a table object from a CSV/TSV file or a database SQL selection in a snap.
 
 Table methods provide basic access, add, delete row(s) or column(s) operations, as well as more advanced sub-table extraction, table sorting,
 record matching via keywords or patterns, table merging, and web publishing.   
@@ -1089,6 +1122,25 @@ $name: the CSV file name.
 $header: 0 or 1 to ignore/interrpret the first line in the file as column names,
 If it is set to 0, the default column names are "col1", "col2", ...
 
+=item table table::fromCSVi ($name, $header = 1)
+
+Same as Data::Table::fromCSV. However, this is an instant method (that's what 'i' stands for), which can be inheritated.
+
+=item table Data::Table::fromTSV ($name, $header = 1)
+
+create a table from a TSV file.
+return a table object.
+$name: the TSV file name.
+$header: 0 or 1 to ignore/interrpret the first line in the file as column names,
+If it is set to 0, the default column names are "col1", "col2", ...
+
+Note: read "TSV FORMAT" section for details.
+
+=item table table::fromTSVi ($name, $header = 1)
+
+Same as Data::Table::fromTSV. However, this is an instant method (that's what 'i' stands for), whic
+h can be inheritated.
+
 =item table Data::Table::fromSQL ($dbh, $sql, $vars)
 
 create a table from the result of an SQL selection query.
@@ -1100,6 +1152,11 @@ $vars: optional reference to an array of variable values,
 required if $sql contains '?'s which need to be replaced 
 by the corresponding variable values upon execution, see DBI.pm for details.
 Hint: in MySQL, Data::Table::fromSQL($dbh, 'show tables from test') will also create a valid table object.
+
+=item table Data::Table::fromSQLi ($dbh, $sql, $vars)
+
+Same as Data::Table::fromSQL. However, this is an instant method (that's what 'i' stands for), whic
+h can be inheritated.
 
 =back
 
@@ -1148,6 +1205,12 @@ be aware that the type of a table should be considered as volital during method 
 =item string table::csv
 
 return a string corresponding to the CSV representation of the table.
+
+=item string table::tsv
+
+return a string corresponding to the TSV representation of the table.
+
+Note: read "TSV FORMAT" section for details.
 
 =item string table::html ($colors = ["#D4D4BF","#ECECE4","#CCCC99"], 
 			  $specs = {'name' => '', 'border => '1', ...})
@@ -1223,6 +1286,12 @@ return a reference to array of row references upon success, undef otherwise.
 
 return a copy of the row at $rowIdx 
 upon success or undef otherwise.
+
+=item refto_hash table::rowHashRef ($rowIdx)
+
+return a reference to a hash, which contains a copy of the row at $rowIdx,
+upon success or undef otherwise. The keys in the hash are column names, and
+the values are corresponding elements in that row. The hash is a copy, therefore modifying the hash values doesn't change the original table.
 
 =item refto_array table::colRef ($colID)
 
@@ -1335,29 +1404,49 @@ Encode an array of scalars into a CSV-formatted string.
 
 Break a CSV encoded string to an array of scalars (check it out, we did it the cool way).
 
+=item string tsvEscape($rowRef)
+
+Encode an array of scalars into a TSV-formatted string.
+
+=item refto_array parseTSV($string)
+
+Break a TSV encoded string to an array of scalars (check it out, we did it the cool way).
+
 =back
+
+=head1 TSV FORMAT
+
+There is no standard for TSV format as far as we know. CSV format can't handle binary data very well, therefore, we choose the TSV format to overcome this limitation.
+
+We define TSV based on MySQL convention.
+
+  "\0", "\n", "\t", "\r", "\b", "'", "\"", and "\\" are all escaped by '\' in the TSV file.
+  (Warning: MySQL treats '\f' as 'f', and it's not escaped here)
+  Undefined values are represented as '\N'.
 
 =head1 INTERFACE TO OTHER SOFTWARES
 
-  Spreadsheet is a very generic type, therefore Data::Table class provides an easy
-  interface between databases, web pages, CSV files, graphics packages, etc.
+Spreadsheet is a very generic type, therefore Data::Table class provides an easy
+interface between databases, web pages, CSV/TSV files, graphics packages, etc.
 
-  Here is a summary (partially repeat) of some classic usages of Data::Table.
+Here is a summary (partially repeat) of some classic usages of Data::Table.
 
 =head2 Interface to Database and Web
 
   use DBI;
 
-  $dbh= DBI->connect("DBI:mysql:test", "test", "") or die $dbh->errstr;
+  $dbh= DBI->connect("DBI:mysql:test", "test", "") or die $DBI::errstr;
   my $minAge = 10;
   $t = Data::Table::fromSQL($dbh, "select * from mytable where age >= ?", [$minAge]);
   print $t->html;
 
-=head2 Interface to CSV
+=head2 Interface to CSV/TSV
 
   $t = fromCSV("mydata.csv");
   $t->sort(1,1,0);
   print $t->csv;
+
+  Same for TSV
 
 =head2 Interface to Graphics Package
 

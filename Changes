@@ -1,5 +1,30 @@
 Revision history for Perl extension Table.
 
+1.19  Sat Feb 24 23:23:37 PST 2001
+  A bug in fromSQL is fixed (caused by typo)
+    This happens when user use the third argument (a reference to an array).
+    The old package will show an error message in some cases.
+
+  Add $header option for csv and tsv, output header or not
+
+  Add the following instant methods
+    fromSQLi
+    fromCSVi
+    fromTSVi
+  so that these methods can be inherited.
+
+  Update new method, so that it can be used as an instant method as well.
+
+  Add method
+    rowHashRef
+  which returns a copy of a table row in hash reference.
+
+  Officially support TSV format via the following three methods
+    Data::Table::fromTSV
+    fromTSVi
+    tsv
+  Read "TSV FORMAT" section for details.
+
 1.18
   Fix the problem in Data::Table::fromCSV caused by null trailing fields.
   E.g., a line "a,b,," in a csv file was split into two fields before.

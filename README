@@ -1,6 +1,6 @@
-Table - Data type related to database tables, spreadsheets, CSV files, HTML table displays, etc.
+Table - Data type related to database tables, spreadsheets, CSV/TSV files, HTML table displays, etc.
 
-Copyright (c) 1998-2000  Yingyao Zhou & Guangzhou Zou
+Copyright (c) 1998-2001  Yingyao Zhou & Guangzhou Zou
 
 See COPYRIGHT section in Table.pm for usage and distribution rights.
 
