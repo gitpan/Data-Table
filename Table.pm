@@ -14,7 +14,7 @@ require AutoLoader;
 @EXPORT = qw(
 	
 );
-$VERSION = '1.27';
+$VERSION = '1.28';
 
 sub new {
   my ($pkg, $data, $header, $type, $enforceCheck) = @_;
@@ -807,7 +807,7 @@ sub parseCSV {
   my ($s, $size)=@_;
   $size = 0 unless defined $size;
   $s =~ s/\n$//; # chop
-  $s =~ s/\\/\\\\/; # escape \ => \\
+  $s =~ s/\\/\\\\/g; # escape \ => \\
   my $n = length($s);
   my ($q, $i)=(0, 0);
   while ($i < $n) {
@@ -826,7 +826,7 @@ sub parseCSV {
   $s =~ s/,"/,/g;
   $s =~ s/""/"/g;
   my @parts=split(/,/, $s, $size);
-  @parts = map {$_ =~ s/\\c/,/g; $_ =~ s/\\\\/\\/g; $_ } @parts;
+  @parts = map {$_ =~ s/(\\c|\\\\)/$1 eq '\c'?',':'\\'/eg; $_ } @parts;
 #  my @parts2=();
 #  foreach $s2 (@parts) {
 #    $s2 =~ s/\\c/,/g;   # restore \c => ,

@@ -1,5 +1,9 @@
 Revision history for Perl extension Table.
 
+1.28  Wed Sep  5 17:59:36 CDT 2001
+  a bug fixed in fromCSV, where \c or \\ apears in the file.
+  Fix provided by Jeff Janes.
+
 1.27  Mon Jul  9 00:04:54 PDT 2001
   accept more formatting parameters for html, combine html2 with html.
 
