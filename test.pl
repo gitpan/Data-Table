@@ -172,7 +172,7 @@ if ($t->sort('Ref No.',1,1,'Temp, C',1,0)) {
 } else {
   print "not ok 29 sort()\n";
 }
-if (($t2=$t->match_pattern('$_->[0] =~ /^L/ && $_->[3]<0.2')) && $t2->nofRow()==4) {
+if (($t2=$t->match_pattern('$_->[0] =~ /^L-a/ && $_->[3]<0.2')) && $t2->nofRow()==2) {
   print "ok 30 match_pattern()\n";
 } else {
 print $t2->csv;

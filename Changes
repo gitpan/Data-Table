@@ -1,7 +1,11 @@
 Revision history for Perl extension Table.
 
-1.24  someday
+1.25  someday
   considering adding more support for html, hard to decide what the best implementation is.
+
+1.24  Sat Apr 21 20:30:18 PDT 2001
+  a bug in match_pattern fixed (important!)
+  Thanks to Robson Francisco de Souza
 
 1.23  Thu Apr 12 14:36:45 PDT 2001
   a bug in html, html2 fixed, where table element "" displayed ugly

@@ -13,7 +13,7 @@ require AutoLoader;
 @EXPORT = qw(
 	
 );
-$VERSION = '1.23';
+$VERSION = '1.24';
 
 sub new {
   my ($pkg, $data, $header, $type, $enforceCheck) = @_;
@@ -620,7 +620,7 @@ sub match_pattern {
   my ($self, $pattern) = @_;
   my @data=();
   $self->rotate() if $self->{type};
-  @Data::Table::OK= eval "map { $pattern; } \@{\$self->{data}};";
+  @Data::Table::OK= eval "map { $pattern?1:0; } \@{\$self->{data}};";
   for (my $i=0; $i<$self->nofRow(); $i++) {
     push @data, $self->{data}->[$i] if $Data::Table::OK[$i];
   }
