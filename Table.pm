@@ -13,7 +13,7 @@ require AutoLoader;
 @EXPORT = qw(
 	
 );
-$VERSION = '1.20';
+$VERSION = '1.21';
 
 sub new {
   my ($pkg, $data, $header, $type, $enforceCheck) = @_;
@@ -149,7 +149,7 @@ sub html {
     $s .= "<TR BGCOLOR=\"" . $BG_COLOR[$i%2] . "\">";
     for (my $j=0; $j<=$#{$header}; $j++) {
       $s .= "<TD>";
-      $s .= ($data->[$i][$j])?$data->[$i][$j]:"&nbsp;";
+      $s .= defined($data->[$i][$j])?$data->[$i][$j]:"&nbsp;";
       $s .= "</TD>";
     }
     $s .= "</TR>\n";
@@ -185,7 +185,7 @@ sub html2 {
           $header->[$i] . "</TD>";
     for (my $j=0; $j<=$#{$data->[0]}; $j++) {
       $s .= "<TD BGCOLOR=" . $BG_COLOR[$j%2] . ">";
-      $s .= ($data->[$i][$j])?$data->[$i][$j]:'&nbsp;';
+      $s .= defined($data->[$i][$j])?$data->[$i][$j]:'&nbsp;';
       $s .= "</TD>";
     }
     $s .= "</TR>\n";
@@ -652,6 +652,23 @@ sub match_string {
   return new Data::Table(\@data, \@{$self->{header}}, 0);
 }
 	
+sub rowMask {
+  my ($self, $OK, $c) = @_;
+  die unless defined($OK);
+  $c = 0 unless defined ($c);
+  my @data=();
+  $self->rotate() if $self->{type};
+  my $data0=$self->data;
+  for (my $i=0; $i<$self->nofRow(); $i++) {
+    if ($c) {
+      push @data, $data0->[$i] unless $OK->[$i];
+    } else {
+      push @data, $data0->[$i] if $OK->[$i];
+    }
+  }
+  return new Data::Table(\@data, \@{$self->{header}}, 0);
+}
+
 sub rowMerge {
   my ($self, $tbl) = @_;
   die "Tables must have the same number of columns" unless ($self->nofCol()==$tbl->nofCol());
@@ -1361,6 +1378,12 @@ Using it, users can find out what are the rows being selected/unselected.
 The $s string is actually treated as a regular expression and 
 applied to each row element, therefore one can actually specify several keywords 
 by saying, for instance, match_string('One|Other').
+
+=item table table::rowMask($mask, $complement)
+
+mask is reference to an array, where elements are evaluated to be true or false. The size of the mask must be equal to the nofRow of the table. return a new table consisting those rows where the corresponding mask element is true (or false, when complement is set to true).
+
+E.g., $t1=$tbl->match_string('keyword'); $t2=$tbl->rowMask(\@Data::Table::OK, 1) creates two new tables. $t1 contains all rows match 'keyword', while $t2 contains all other rows.
 
 =back
 

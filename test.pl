@@ -6,7 +6,7 @@
 # Change 1..1 below to 1..last_test_to_print .
 # (It may become useful if the test is moved to ./t subdirectory.)
 
-BEGIN { $| = 1; print "1..44\n"; }
+BEGIN { $| = 1; print "1..45\n"; }
 END {print "not ok 1\n" unless $loaded;}
 use Data::Table;
 $loaded = 1;
@@ -252,6 +252,15 @@ if (equal($t->rowRefs(), $t2->rowRefs())) {
 } else {
   print "not ok 42 instant method fromTSVi\n";
 }
+
+$t2 = $t->match_string("L-proline");
+$t3 = $t->rowMask(\@Data::Table::OK, 1);
+if ($t2->nofRow == 1 && $t3->nofRow == $t->nofRow - $t2->nofRow) {
+  print "ok 43 rowMask\n";
+} else {
+  print "not ok 43 rowMask\n";
+}
+
 # use DBI;
 # $dbh= DBI->connect("DBI:mysql:test", "test", "") or die $dbh->errstr;
 # $t = Data::Table::fromSQL($dbh, "show tables");
@@ -268,15 +277,15 @@ package main;
 
 $foo=FOO->new([[11,12],[21,22],[31,32]],['header1','header2'],0);
 if ($foo->csv) {
-  print "ok 43 Inheritance\n";
+  print "ok 44 Inheritance\n";
 } else {
-  print "not ok 43 Inheritance\n";
+  print "not ok 44 Inheritance\n";
 }
 $foo = FOO->fromCSVi("aaa.csv");
 if ($foo->csv) {
-  print "ok 44 inheritated instant method fromCSVi\n";
+  print "ok 45 inheritated instant method fromCSVi\n";
 } else {
-  print "not ok 44 inheritated instant method fromCSVi\n";
+  print "not ok 45 inheritated instant method fromCSVi\n";
 }
 
 sub equal {

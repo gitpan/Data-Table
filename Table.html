@@ -476,6 +476,11 @@ Using it, users can find out what are the rows being selected/unselected.
 The $s string is actually treated as a regular expression and 
 applied to each row element, therefore one can actually specify several keywords 
 by saying, for instance, match_string('One|Other').</P>
+<P></P>
+<DT><STRONG><A NAME="item_rowMask">table table::rowMask($mask, $complement)</A></STRONG><BR>
+<DD>
+mask is reference to an array, where elements are evaluated to be true or false. The size of the mask must be equal to the nofRow of the table. return a new table consisting those rows where the corresponding mask element is true (or false, when complement is set to true).
+<P>E.g., $t1=$tbl-&gt;match_string('keyword'); $t2=$tbl-&gt;rowMask(\@Data::Table::OK, 1) creates two new tables. $t1 contains all rows match 'keyword', while $t2 contains all other rows.</P>
 <P></P></DL>
 <P>
 <H2><A NAME="tabletable manipulations">Table-Table Manipulations</A></H2>
