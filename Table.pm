@@ -14,7 +14,7 @@ require AutoLoader;
 @EXPORT = qw(
 	
 );
-$VERSION = '1.28';
+$VERSION = '1.29';
 
 sub new {
   my ($pkg, $data, $header, $type, $enforceCheck) = @_;
@@ -869,6 +869,7 @@ sub fromTSV {
     @header = map { $_ =~ s/\\([0ntrb'"\\])/$ESC{$1}/g; $_ } @$one;
   } else {
     @header = map {"col$_"} (1..$size); # name each column as col1, col2, .. etc    push @data, $one;
+    push @data, $one;
   }
 
   while(<SRC>) {
