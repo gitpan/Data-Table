@@ -500,6 +500,16 @@ Table $tbl must have the same number of rows as the original.
 It returns 1 upon success, undef otherwise.
 Table $tbl should not be used afterwards, since it becomes part of
 the new table.
+<P></P>
+<DT><STRONG><A NAME="item_join">table table::join ($tbl, $type, $cols1, $cols2)</A></STRONG><BR>
+<DD>
+Join two tables. The following join types are supported (defined by $type):
+<P>0: inner join
+1: left outer join
+2: right outer join
+3: full outer join</P>
+<P>$cols1 and $cols2 are references to array of colIDs, where rows with the same elements in all listed columns are merged. As the result table, columns listed in $cols2 are deleted, before a new table is returned.</P>
+<P>The implementation is hash-join, the running time should be linear with respect to the sum of number of rows in the two tables (assume both tables fit in memeory).</P>
 <P></P></DL>
 <P>
 <H2><A NAME="internal methods">Internal Methods</A></H2>

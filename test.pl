@@ -6,7 +6,7 @@
 # Change 1..1 below to 1..last_test_to_print .
 # (It may become useful if the test is moved to ./t subdirectory.)
 
-BEGIN { $| = 1; print "1..45\n"; }
+BEGIN { $| = 1; print "1..49\n"; }
 END {print "not ok 1\n" unless $loaded;}
 use Data::Table;
 $loaded = 1;
@@ -240,25 +240,59 @@ if (equal($t->rowRefs(), $t2->rowRefs())) {
   print "not ok 40 something broke already\n";
 }
 
-$t = Data::Table->fromCSVi("aaa.csv");
-if (equal($t->rowRefs(), $t2->rowRefs())) {
-  print "ok 41 instant method fromCSVi\n";
+$t2->rename(0,'New1');
+$t2->rename(1,'New2');
+$t2->rename(2,'New3');
+$t2->rename(3,'New4');
+$t2->rename(4,'New5');
+$t2->rename(5,'New6');
+$t2->delRows([2,3,4]);
+$t->delRows([0,8]);
+$t3 = $t->join($t2, 0, [0,1], [0,1]);
+if ($t3->nofRow == 4) {
+  print "ok 41 join: inner\n";
 } else {
-  print "not ok 41 instant method fromCSVi\n";
+  print "not ok 41 join: inner\n";
+}
+$t3 = $t->join($t2, 1, [0,1], [0,1]);
+if ($t3->nofRow == 7) {
+  print "ok 42 join: left outer\n";
+} else {
+  print "not ok 42 join: left outer\n";
+}
+$t3 = $t->join($t2, 2, [0,1], [0,1]);
+if ($t3->nofRow == 6) {
+  print "ok 43 join: right outer\n";
+} else {
+  print "not ok 43 join: right outer\n";
+}
+$t3 = $t->join($t2, 3, [0,1], [0,1]);
+if ($t3->nofRow == 9) {
+  print "ok 44 join: full outer\n";
+} else {
+  print "not ok 44 join: full outer\n";
+}
+
+$t = Data::Table->fromCSVi("aaa.csv");
+$t2=Data::Table::fromCSV('aaa.csv');
+if (equal($t->rowRefs(), $t2->rowRefs())) {
+  print "ok 45 instant method fromCSVi\n";
+} else {
+  print "not ok 45 instant method fromCSVi\n";
 }
 $t = Data::Table->fromTSVi("aaa.tsv");
 if (equal($t->rowRefs(), $t2->rowRefs())) {
-  print "ok 42 instant method fromTSVi\n";
+  print "ok 46 instant method fromTSVi\n";
 } else {
-  print "not ok 42 instant method fromTSVi\n";
+  print "not ok 46 instant method fromTSVi\n";
 }
 
 $t2 = $t->match_string("L-proline");
 $t3 = $t->rowMask(\@Data::Table::OK, 1);
 if ($t2->nofRow == 1 && $t3->nofRow == $t->nofRow - $t2->nofRow) {
-  print "ok 43 rowMask\n";
+  print "ok 47 rowMask\n";
 } else {
-  print "not ok 43 rowMask\n";
+  print "not ok 47 rowMask\n";
 }
 
 # use DBI;
@@ -277,15 +311,15 @@ package main;
 
 $foo=FOO->new([[11,12],[21,22],[31,32]],['header1','header2'],0);
 if ($foo->csv) {
-  print "ok 44 Inheritance\n";
+  print "ok 48 Inheritance\n";
 } else {
-  print "not ok 44 Inheritance\n";
+  print "not ok 48 Inheritance\n";
 }
 $foo = FOO->fromCSVi("aaa.csv");
 if ($foo->csv) {
-  print "ok 45 inheritated instant method fromCSVi\n";
+  print "ok 49 inheritated instant method fromCSVi\n";
 } else {
-  print "not ok 45 inheritated instant method fromCSVi\n";
+  print "not ok 49 inheritated instant method fromCSVi\n";
 }
 
 sub equal {

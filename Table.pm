@@ -13,7 +13,7 @@ require AutoLoader;
 @EXPORT = qw(
 	
 );
-$VERSION = '1.21';
+$VERSION = '1.22';
 
 sub new {
   my ($pkg, $data, $header, $type, $enforceCheck) = @_;
@@ -182,7 +182,7 @@ sub html2 {
   my $data=$self->{data};
   for (my $i = 0; $i <= $#{$header}; $i++) {
     $s .= "<TR><TH BGCOLOR=\"" . $BG_COLOR[2] . "\">" .
-          $header->[$i] . "</TD>";
+          $header->[$i] . "</TH>";
     for (my $j=0; $j<=$#{$data->[0]}; $j++) {
       $s .= "<TD BGCOLOR=" . $BG_COLOR[$j%2] . ">";
       $s .= defined($data->[$i][$j])?$data->[$i][$j]:'&nbsp;';
@@ -904,6 +904,95 @@ sub fromSQL {
   return $t;
 }
 
+sub join {
+  my ($self, $tbl, $type, $cols1, $cols2) = @_;
+  my $n1 = scalar @$cols1;
+  my $n2 = scalar @$cols2;
+  die "The number of join columns must be the same: $n1 != $n2" unless $n1==$n2;
+  die "At least one join column must be specified" unless $n1;
+  my ($i, $j);
+  my @cols3 = ();
+  for ($i = 0; $i < $n1; $i++) {
+    $cols1->[$i]=$self->checkOldCol($cols1->[$i]);
+    die "Unknown column ". $cols1->[$i] unless defined($cols1->[$i]);
+    $cols2->[$i]=$tbl->checkOldCol($cols2->[$i]);
+    die "Unknown column ". $cols2->[$i] unless defined($cols2->[$i]);
+    $cols3[$cols2->[$i]]=1;
+  }
+  my @cols4 = (); # the list of remaining columns
+  my @header2 = ();
+  for ($i = 0; $i < $tbl->nofCol; $i++) {
+    if ($cols3[$i]!=1) {
+      push @cols4, $i;
+      push @header2, $tbl->{header}->[$i];
+    }
+  }
+
+  $self->rotate() if $self->{type};
+  $tbl->rotate() if $tbl->{type};
+  my $data1 = $self->{data};
+  my $data2 = $tbl->{data};
+  my %H=();
+  my $key;
+  my @subRow;
+  for ($i = 0; $i < $self->nofRow; $i++) {
+    @subRow = @{$data1->[$i]}[@$cols1];
+    $key = join("\t", map {tsvEscape($_)} @subRow);
+    unless (defined($H{$key})) {
+      $H{$key} = [[$i], []];
+    } else {
+      push @{$H{$key}->[0]}, $i;
+    }
+  }
+  for ($i = 0; $i < $tbl->nofRow; $i++) {
+    @subRow = @{$data2->[$i]}[@$cols2];
+    $key = join("\t", map {tsvEscape($_)} @subRow);
+    unless (defined($H{$key})) {
+      $H{$key} = [[], [$i]];
+    } else {
+      push @{$H{$key}->[1]}, $i;
+    }
+  }
+# $type
+# 0: inner join
+# 1: left outer join
+# 2: right outer join
+# 3: full outer join
+  my @ones = ();
+  my @null1 = ();
+  my @null2 = ();
+  $null1[$self->nofCol-1]=undef;
+  $null2[$#cols4]=undef;
+  foreach $key (keys %H) {
+    my ($rows1, $rows2) = @{$H{$key}};
+    my $nr1 = scalar @$rows1;
+    my $nr2 = scalar @$rows2;
+    next if ($nr1 == 0 && ($type == 0 || $type == 1));
+    next if ($nr2 == 0 && ($type == 0 || $type == 2));
+    if ($nr2 == 0 && ($type == 1 || $type == 3)) {
+      for ($i = 0; $i < $nr1; $i++) {
+        push @ones, [$self->row($rows1->[$i]), @null2];
+      }
+      next;
+    }
+    if ($nr1 == 0 && ($type == 2 || $type == 3)) {
+      for ($j = 0; $j < $nr2; $j++) {
+        my @row2 = $tbl->row($rows2->[$j]);
+        push @ones, [@null1, @row2[@cols4]];
+      }
+      next;
+    }
+    for ($i = 0; $i < $nr1; $i++) {
+      for ($j = 0; $j < $nr2; $j++) {
+        my @row2 = $tbl->row($rows2->[$j]);
+        push @ones, [$self->row($rows1->[$i]), @row2[@cols4]];
+      }
+    }
+  }
+  my $header = [@{$self->{header}}, @header2];
+  return new Data::Table(\@ones, $header, 0);
+}
+
 ## interface to GD::Graph
 # use GD::Graph::points;
 # $graph = GD::Graph::points->new(400, 300);
@@ -1406,6 +1495,19 @@ Table $tbl must have the same number of rows as the original.
 It returns 1 upon success, undef otherwise.
 Table $tbl should not be used afterwards, since it becomes part of
 the new table.
+
+=item table table::join ($tbl, $type, $cols1, $cols2)
+
+Join two tables. The following join types are supported (defined by $type):
+
+0: inner join
+1: left outer join
+2: right outer join
+3: full outer join
+
+$cols1 and $cols2 are references to array of colIDs, where rows with the same elements in all listed columns are merged. As the result table, columns listed in $cols2 are deleted, before a new table is returned.
+
+The implementation is hash-join, the running time should be linear with respect to the sum of number of rows in the two tables (assume both tables fit in memeory).
 
 =back
 
