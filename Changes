@@ -1,5 +1,8 @@
 Revision history for Perl extension Table.
 
+1.32 Sun Sep 30 16:21:02 CDT 2001
+  No change, just update Table.html (forgot in version 1.31)
+
 1.31 Wed Sep 20 21:22:22 PDT 2001
   add colsMap($fun), which does more than colMap can;
   Unlike colMap, $fun here have access to multiple columns.

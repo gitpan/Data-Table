@@ -463,6 +463,14 @@ foreach element in column $colID, map a function $fun to it.
 It returns 1 upon success or undef otherwise.
 This is a handy way to format a column. E.g. if a column named URL contains URL strings, colMap(``URL'', sub {``&lt;a href='$_'&gt;$_&lt;/a&gt;''}) before <A HREF="#item_html"><CODE>html()</CODE></A> will change each URL into a clickable hyper link while displayed in a web browser.
 <P></P>
+<DT><STRONG><A NAME="item_colsMap">int table::colsMap ($fun)</A></STRONG><BR>
+<DD>
+foreach row in the table, map a function $fun to it.
+It can do whatever colMap can do and more.
+It returns 1 upon success or undef otherwise.
+colMap function only give $fun access to the particular element per row, while colsMap give $fun full access to all elements per row. E.g. if two columns named duration and unit ([``2'', ``hrs''], [``30'', ``sec'']). colsMap(sub {$_-&gt;[0] .= `` (''.$_-&gt;[1].``)''; } will change each row into ([``2 hrs'', ``hrs''], [``30 sec'', ``sec'']).
+As show, in the $func, a column element should be referred as $_-&gt;[$colIndex].
+<P></P>
 <DT><STRONG><A NAME="item_sort">int table::sort($colID1, $type1, $order1, $colID2, $type2, $order2, ... )</A></STRONG><BR>
 <DD>
 sort a table in place.

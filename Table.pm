@@ -14,7 +14,7 @@ require AutoLoader;
 @EXPORT = qw(
 	
 );
-$VERSION = '1.31';
+$VERSION = '1.32';
 
 sub new {
   my ($pkg, $data, $header, $type, $enforceCheck) = @_;
