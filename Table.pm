@@ -15,7 +15,7 @@ require AutoLoader;
 @EXPORT = qw(
 	
 );
-$VERSION = '1.42';
+$VERSION = '1.43';
 
 sub new {
   my ($pkg, $data, $header, $type, $enforceCheck) = @_;
@@ -31,7 +31,7 @@ sub new {
   if ($enforceCheck && scalar @$data > 0) {
     my $size=scalar @{$data->[0]};
     for (my $j =1; $j<scalar @$data; $j++) {
-      croak "Inconsistant array size at data[$j]" unless (scalar @{$data->[$j]} == $size);
+      croak "Inconsistent array size at data[$j]" unless (scalar @{$data->[$j]} == $size);
     }
   } elsif (scalar @$data == 0) {
     $type = 0;
@@ -136,60 +136,60 @@ sub tsv {
 # output table in HTML format
 sub html {
   my ($self, $colors, $tag_tbl, $tag_tr, $tag_th, $tag_td, $portrait) = @_;
-  my ($s, $s_tr, $s_td, $s_th) = ("", "TR", "", "TH");
+  my ($s, $s_tr, $s_td, $s_th) = ("", "tr", "", "th");
   my $key;
-  $tag_tbl = { BORDER => 1 } unless (ref $tag_tbl eq 'HASH');
+  $tag_tbl = { border => 1 } unless (ref $tag_tbl eq 'HASH');
   $tag_tr = {} unless (ref $tag_tr eq 'HASH');
   $tag_th = {} unless (ref $tag_th eq 'HASH');
   $tag_td = {} unless (ref $tag_td eq 'HASH');
   $portrait = 1 unless defined($portrait);
 
-  $s = "<TABLE ";
+  $s = "<table ";
   foreach $key (keys %$tag_tbl) {
-    $s .= " $key=$tag_tbl->{$key}";
+    $s .= " $key=\"$tag_tbl->{$key}\"";
   }
   $s .= ">\n";
   my $header=$self->{header};
   my @BG_COLOR=("#D4D4BF","#ECECE4","#CCCC99");
   @BG_COLOR=@$colors if ((ref($colors) eq "ARRAY") && (scalar @$colors==3));
   foreach $key (keys %$tag_tr) {
-    $s_tr .= " $key=$tag_tr->{$key}";
+    $s_tr .= " $key=\"$tag_tr->{$key}\"";
   }
   foreach $key (keys %$tag_th) {
-    $s_th .= " $key=$tag_th->{$key}";
+    $s_th .= " $key=\"$tag_th->{$key}\"";
   }
   if ($portrait) {
-    $s .= "<$s_tr BGCOLOR=\"" . $BG_COLOR[2] . "\"><$s_th>" .
-      join("</TH><$s_th>", @$header) . "</TH></TR>\n";
+    $s .= "<$s_tr bgcolor=\"" . $BG_COLOR[2] . "\"><$s_th>" .
+      join("</th><$s_th>", @$header) . "</th></tr>\n";
     $self->rotate() if $self->{type};
     my $data=$self->{data};
     for (my $i=0; $i<=$#{$data}; $i++) {
-      $s .= "<$s_tr BGCOLOR=\"" . $BG_COLOR[$i%2] . "\">";
+      $s .= "<$s_tr bgcolor=\"" . $BG_COLOR[$i%2] . "\">";
       for (my $j=0; $j<=$#{$header}; $j++) {
         my $s_td = $tag_td->{$j} || $tag_td->{$header->[$j]};
-        $s .= defined($s_td)? "<TD $s_td>":"<TD>";
+        $s .= defined($s_td)? "<td $s_td>":"<td>";
         $s .= (defined($data->[$i][$j]) && $data->[$i][$j] ne '')?$data->[$i][$j]:"&nbsp;";
-        $s .= "</TD>";
+        $s .= "</td>";
       }
-      $s .= "</TR>\n";
+      $s .= "</tr>\n";
     }
   } else {
     $self->rotate() unless $self->{type};
     my $data=$self->{data};
     for (my $i = 0; $i <= $#{$header}; $i++) {
-      $s .= "<$s_tr><$s_th BGCOLOR=\"" . $BG_COLOR[2] . "\">" .
-            $header->[$i] . "</TH>";
+      $s .= "<$s_tr><$s_th bgcolor=\"" . $BG_COLOR[2] . "\">" .
+            $header->[$i] . "</th>";
       my $s_td = $tag_td->{$i} || $tag_td->{$header->[$i]};
       for (my $j=0; $j<=$#{$data->[0]}; $j++) {
-        $s .= defined($s_td)? "<TD $s_td":"<TD";
-        $s .= " BGCOLOR=" . $BG_COLOR[$j%2] . ">";
+        $s .= defined($s_td)? "<td $s_td":"<td";
+        $s .= " bgcolor=\"" . $BG_COLOR[$j%2] . "\">";
         $s .= (defined($data->[$i][$j]) && $data->[$i][$j] ne '')?$data->[$i][$j]:'&nbsp;';
-        $s .= "</TD>";
+        $s .= "</td>";
       }
-      $s .= "</TR>\n";
+      $s .= "</tr>\n";
     }
   }
-  $s .= "</TABLE>\n";
+  $s .= "</table>\n";
   return $s;
 }
 
@@ -849,7 +849,7 @@ sub fromCSV {
   while(<SRC>) {
     my $one = parseCSV($_, $size);
 #   print join("|", @$one), scalar @$one, "\n";
-    croak "Inconsistant column number at data entry: ".($#data+1) unless ($size==scalar @$one);
+    croak "Inconsistent column number at data entry: ".($#data+1) unless ($size==scalar @$one);
     push @data, $one;
   }
   close(SRC);
@@ -956,7 +956,7 @@ sub fromTSV {
         $one[$i] =~ s/\\([0ntrb'"\\])/$ESC{$1}/g;
       }
     }
-    croak "Inconsistant column number at data entry: ".($#data+1) unless ($size==scalar @one);
+    croak "Inconsistent column number at data entry: ".($#data+1) unless ($size==scalar @one);
     push @data, \@one;
   }
   close(SRC);
@@ -1306,8 +1306,8 @@ Data::Table - Data type related to database tables, spreadsheets, CSV/TSV files,
   print $t->csv;                        # Print out the table as a csv file.
 
   
-  $t = Data::Table::fromCSV("aaa.csv");       # Read a csv file into a table oject
-  print $t->html;                       # Diplay a 'portrait' HTML TABLE on web. 
+  $t = Data::Table::fromCSV("aaa.csv");       # Read a csv file into a table object
+  print $t->html;                       # Display a 'portrait' HTML TABLE on web. 
 
   use DBI;
   $dbh= DBI->connect("DBI:mysql:test", "test", "") or die $DBI::errstr;
@@ -1428,13 +1428,13 @@ E.g., if a spreadsheet consists of two columns lastname and age.
 In a row-based table, $data = [ ['Smith', 29], ['Dole', 32] ].
 In a column-based table, $data = [ ['Smith', 'Dole'], [29, 32] ].
 
-Two implementions have their pros and cons for different operations.
+Two implementations have their pros and cons for different operations.
 Row-based implementation is better for sorting and pattern matching,
 while column-based one is better for adding/deleting/swapping columns.
 
 Users only need to specify the implementation type of the table upon its
 creation via Data::Table::new, and can forget about it afterwards.
-Implementation type of a table should be considered volital, because
+Implementation type of a table should be considered volatile, because
 methods switch table objects from one type into another internally.
 Be advised that row/column/element references gained via table::rowRef,
 table::rowRefs, table::colRef, table::colRefs, or table::elmRef may
@@ -1496,7 +1496,7 @@ If method_name starts with table::, this is an instance method, it can be used a
 If method_name starts with Data::Table::, this is a class method, it should be called as
   Data::Table::method, e.g., $t = Data::Table::fromCSV("filename.csv").
 
-Convensions for local variables:
+Conventions for local variables:
 
   colID: either a numerical column index or a column name;
   rowIdx: numerical row index;
@@ -1558,8 +1558,7 @@ Note: read "TSV FORMAT" section for details.
 
 =item table table::fromTSVi ($name, $includeHeader = 1, $header = ["col1", ... ])
 
-Same as Data::Table::fromTSV. However, this is an instant method (that's what 'i' stands for), whic
-h can be inherited.
+Same as Data::Table::fromTSV. However, this is an instant method (that's what 'i' stands for), which can be inherited.
 
 =item table Data::Table::fromSQL ($dbh, $sql, $vars)
 
@@ -1615,7 +1614,7 @@ Otherwise, use the new header.
 =item int table::type
 
 return the implementation type of the table (row-based/column-based) at the time,
-be aware that the type of a table should be considered as volital during method calls.
+be aware that the type of a table should be considered as volatile during method calls.
 
 =back
 
@@ -1637,11 +1636,11 @@ Note: read "TSV FORMAT" section for details.
 			  $tag_tbl = {border => '1'},
                           $tag_tr  = {align => 'left'},
                           $tag_th  = {align => 'center'},
-                          $tag_td  = {col3 => 'align=right valign=bottom', 4 => 'align=left'},
+                          $tag_td  = {col3 => 'align="right" valign="bottom"', 4 => 'align="left"'},
                           $l_portrait = 1
                         )
 
-return a string corresponding to a 'Portrait/Lanscape'-style html-tagged table.
+return a string corresponding to a 'Portrait/Landscape'-style html-tagged table.
 $colors: a reference to an array of three color strings, used for backgrounds for table header, odd-row records, and even-row records, respectively. 
 A default color array ("#D4D4BF","#ECECE4","#CCCC99")
 will be used if $colors isn't defined. 
@@ -1661,10 +1660,16 @@ The key of %$tag_td are either column names or column indices, the value is the 
 $portrait controls the layout of the table. The default is 1, i.e., the table is shown in the
 "Portrait" style, like in Excel. 0 means "Landscape".
 
+Attention: You will have to escape HTML-Entities yourself (for example '<' as '&lt;'), if you have characters in you table which need to be escaped. You can do this for example with the escapeHTML-function from CGI.pm (or the HTML::Entities module).
+
+  use CGI qw(escapeHTML);
+  [...]
+  $t->colMap($columnname, sub{escapeHTML($_)}); # for every column, where HTML-Entities occur.
+
 =item string table::html2 ($colors = ["#D4D4BF","#ECECE4","#CCCC99"],
 		 	   $specs = {'name' => '', 'border' => '1', ...})
 
-This method is depricated. It's here for compatibility. It now simple call html method with $portrait = 0, see previous description.
+This method is deprecated. It's here for compatibility. It now simple call html method with $portrait = 0, see previous description.
 
 return a string corresponding to a "Landscape" html-tagged table.
 This is useful to present a table with many columns, but very few entries.
@@ -1751,7 +1756,7 @@ upon success or undef otherwise.
 
 rename the column at $colID to a $newName 
 (the newName must be valid, 
-and should not be idential to any other existing column names).
+and should not be identical to any other existing column names).
 It returns 1 upon success
 or undef otherwise.
 
@@ -1881,7 +1886,7 @@ Join two tables. The following join types are supported (defined by $type):
 
 $cols1 and $cols2 are references to array of colIDs, where rows with the same elements in all listed columns are merged. As the result table, columns listed in $cols2 are deleted, before a new table is returned.
 
-The implementation is hash-join, the running time should be linear with respect to the sum of number of rows in the two tables (assume both tables fit in memeory).
+The implementation is hash-join, the running time should be linear with respect to the sum of number of rows in the two tables (assume both tables fit in memory).
 
 =back
 
