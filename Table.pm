@@ -14,7 +14,7 @@ require AutoLoader;
 @EXPORT = qw(
 	
 );
-$VERSION = '1.26';
+$VERSION = '1.27';
 
 sub new {
   my ($pkg, $data, $header, $type, $enforceCheck) = @_;
@@ -126,34 +126,59 @@ sub tsv {
 
 # output table in HTML format
 sub html {
-  my ($self, $colors, $specs) = @_;
-  my %sp = ();
-  my $s = "";
-  if (ref $specs eq 'HASH') {
-	%sp = %$specs;
-  } else {
-	$sp{BORDER} = 1;
-  } 
+  my ($self, $colors, $tag_tbl, $tag_tr, $tag_th, $tag_td, $portrait) = @_;
+  my ($s, $s_tr, $s_td, $s_th) = ("", "TR", "", "TH");
+  my $key;
+  $tag_tbl = { BORDER => 1 } unless (ref $tag_tbl eq 'HASH');
+  $tag_tr = {} unless (ref $tag_tr eq 'HASH');
+  $tag_th = {} unless (ref $tag_th eq 'HASH');
+  $tag_td = {} unless (ref $tag_td eq 'HASH');
+  $portrait = 1 unless defined($portrait);
+
   $s = "<TABLE ";
-  foreach my $key (keys %sp) {
-	$s .= "$key=$sp{$key} ";
+  foreach $key (keys %$tag_tbl) {
+    $s .= " $key=$tag_tbl->{$key}";
   }
   $s .= ">\n";
   my $header=$self->{header};
   my @BG_COLOR=("#D4D4BF","#ECECE4","#CCCC99");
   @BG_COLOR=@$colors if ((ref($colors) eq "ARRAY") && (scalar @$colors==3));
-  $s .= "<TR BGCOLOR=\"" . $BG_COLOR[2] . "\"><TH>" .
-    join("</TH><TH>", @$header) . "</TH></TR>\n";
-  $self->rotate() if $self->{type};
-  my $data=$self->{data};
-  for (my $i=0; $i<=$#{$data}; $i++) {
-    $s .= "<TR BGCOLOR=\"" . $BG_COLOR[$i%2] . "\">";
-    for (my $j=0; $j<=$#{$header}; $j++) {
-      $s .= "<TD>";
-      $s .= (defined($data->[$i][$j]) && $data->[$i][$j] ne '')?$data->[$i][$j]:"&nbsp;";
-      $s .= "</TD>";
+  foreach $key (keys %$tag_tr) {
+    $s_tr .= " $key=$tag_tr->{$key}";
+  }
+  foreach $key (keys %$tag_th) {
+    $s_th .= " $key=$tag_th->{$key}";
+  }
+  if ($portrait) {
+    $s .= "<$s_tr BGCOLOR=\"" . $BG_COLOR[2] . "\"><$s_th>" .
+      join("</TH><$s_th>", @$header) . "</TH></TR>\n";
+    $self->rotate() if $self->{type};
+    my $data=$self->{data};
+    for (my $i=0; $i<=$#{$data}; $i++) {
+      $s .= "<$s_tr BGCOLOR=\"" . $BG_COLOR[$i%2] . "\">";
+      for (my $j=0; $j<=$#{$header}; $j++) {
+        my $s_td = $tag_td->{$j} || $tag_td->{$header->[$j]};
+        $s .= defined($s_td)? "<TD $s_td>":"<TD>";
+        $s .= (defined($data->[$i][$j]) && $data->[$i][$j] ne '')?$data->[$i][$j]:"&nbsp;";
+        $s .= "</TD>";
+      }
+      $s .= "</TR>\n";
     }
-    $s .= "</TR>\n";
+  } else {
+    $self->rotate() unless $self->{type};
+    my $data=$self->{data};
+    for (my $i = 0; $i <= $#{$header}; $i++) {
+      $s .= "<$s_tr><$s_th BGCOLOR=\"" . $BG_COLOR[2] . "\">" .
+            $header->[$i] . "</TH>";
+      my $s_td = $tag_td->{$i} || $tag_td->{$header->[$i]};
+      for (my $j=0; $j<=$#{$data->[0]}; $j++) {
+        $s .= defined($s_td)? "<TD $s_td":"<TD";
+        $s .= " BGCOLOR=" . $BG_COLOR[$j%2] . ">";
+        $s .= (defined($data->[$i][$j]) && $data->[$i][$j] ne '')?$data->[$i][$j]:'&nbsp;';
+        $s .= "</TD>";
+      }
+      $s .= "</TR>\n";
+    }
   }
   $s .= "</TABLE>\n";
   return $s;
@@ -163,36 +188,8 @@ sub html {
 # so that each HTML table row is a column in the table
 # This is useful for a slim table (few columns but many rows)
 sub html2 {
-  my ($self, $colors, $specs) = @_;
-  my %sp = ();   
-  my $s = "";  
-  if (ref $specs eq 'HASH') {
-        %sp = %$specs;
-  } else {
-        $sp{'BORDER'} = 1;
-  }
-  $s = "<TABLE ";
-  foreach my $key (keys %sp) {
-        $s .= "$key=$sp{$key} ";
-  }
-  $s .= ">\n";
-  my $header=$self->{header};
-  my @BG_COLOR=("#D4D4BF","#ECECE4","#CCCC99");
-  @BG_COLOR=@$colors if ((ref($colors) eq "ARRAY") && (scalar @$colors==3));
-  $self->rotate() unless $self->{type};
-  my $data=$self->{data};
-  for (my $i = 0; $i <= $#{$header}; $i++) {
-    $s .= "<TR><TH BGCOLOR=\"" . $BG_COLOR[2] . "\">" .
-          $header->[$i] . "</TH>";
-    for (my $j=0; $j<=$#{$data->[0]}; $j++) {
-      $s .= "<TD BGCOLOR=" . $BG_COLOR[$j%2] . ">";
-      $s .= (defined($data->[$i][$j]) && $data->[$i][$j] ne '')?$data->[$i][$j]:'&nbsp;';
-      $s .= "</TD>";
-    }
-    $s .= "</TR>\n";
-  }
-  $s .= "</TABLE>\n";
-  return $s;
+  my ($self, $colors, $tag_tbl, $tag_tr, $tag_th, $tag_td) = @_;
+  return $self->html($colors, $tag_tbl, $tag_tr, $tag_th, $tag_td, 0);
 }
 
 # apply a $fun to each elm in a col 
@@ -1331,18 +1328,37 @@ return a string corresponding to the TSV representation of the table.
 Note: read "TSV FORMAT" section for details.
 
 =item string table::html ($colors = ["#D4D4BF","#ECECE4","#CCCC99"], 
-			  $specs = {'name' => '', 'border => '1', ...})
+			  $tag_tbl = {border => '1'},
+                          $tag_tr  = {align => 'left'},
+                          $tag_th  = {align => 'center'},
+                          $tag_td  = {col3 => 'align=right valign=bottom', 4 => 'align=left'},
+                          $l_portrait = 1
+                        )
 
-return a string corresponding to a 'Portrait'-style html-tagged table.
+return a string corresponding to a 'Portrait/Lanscape'-style html-tagged table.
 $colors: a reference to an array of three color strings, used for backgrounds for table header, odd-row records, and even-row records, respectively. 
-A defaut color array ("#D4D4BF","#ECECE4","#CCCC99")
+A default color array ("#D4D4BF","#ECECE4","#CCCC99")
 will be used if $colors isn't defined. 
-$specs: a reference to a hash that specifies other attributes such as name, border,
+
+$tag_tbl: a reference to a hash that specifies any legal attributes such as name, border,
 id, class, etc. for the TABLE tag.
-The table is shown in the "Portrait" style, like in Excel.
+
+$tag_tr: a reference to a hash that specifies any legal attributes for the TR tag.
+
+$tag_th: a reference to a hash that specifies any legal attributes for the TH tag.
+
+$tag_td: a reference to a hash that specifies any legal attributes for the TD tag.
+
+Notice $tag_tr and $tag_th controls all the rows and columns of the whole table. The keys of the hash are the attribute names in these cases. However, $tag_td is column specific, i.e., you should specify TD attributes for every column separately.
+The key of %$tag_td are either column names or column indices, the value is the full string to be inserted into the TD tag. E.g., $tag_td  = {col3 => 'align=right valign=bottom} only change the TD tag in "col3" to be &lt;TD align=right valign=bottom&gt;.
+
+$portrait controls the layout of the table. The default is 1, i.e., the table is shown in the
+"Portrait" style, like in Excel. 0 means "Landscape".
 
 =item string table::html2 ($colors = ["#D4D4BF","#ECECE4","#CCCC99"],
 		 	   $specs = {'name' => '', 'border' => '1', ...})
+
+This method is depricated. It's here for compatibility. It now simple call html method with $portrait = 0, see previous description.
 
 return a string corresponding to a "Landscape" html-tagged table.
 This is useful to present a table with many columns, but very few entries.
@@ -1602,7 +1618,7 @@ Here is a summary (partially repeat) of some classic usages of Data::Table.
 
 Copyright 1998-2000, Yingyao Zhou & Guangzhou Zou. All rights reserved.
 
-It was first written by Zhou in 1998, significantly improved and maintained by Zou since 1999. The authors thank Tong Peng and Yongchuang Tao for valuable suggestions.
+It was first written by Zhou in 1998, significantly improved and maintained by Zou since 1999. The authors thank Tong Peng and Yongchuang Tao for valuable suggestions. We also thank those who kindly reported bugs, some of them are acknowledged in the "Changes" file.
 
 This library is free software; you can redistribute it and/or modify
 it under the same terms as Perl itself.
