@@ -15,7 +15,7 @@ require AutoLoader;
 @EXPORT = qw(
 	
 );
-$VERSION = '1.40';
+$VERSION = '1.42';
 
 sub new {
   my ($pkg, $data, $header, $type, $enforceCheck) = @_;
@@ -1130,9 +1130,9 @@ sub group {
     my $myRow = $self->rowRef($i);
     my @val = ();
     foreach my $x (@X) {
-      push @val, defined($myRow->[$x])?$myRow->[$x]:"NULL";
+      push @val, defined($myRow->[$x])?$myRow->[$x]:"";
     }
-    my $myKey = join("\t", @val);
+    my $myKey = CORE::join("\t", @val);
     if (scalar @Y) {
       my %Y = ();
       foreach my $y (@Y) {
@@ -1248,9 +1248,9 @@ sub pivot {
     if (scalar @X) {
       my @val = ();
       foreach my $x (@X) {
-        push @val, defined($myRow->{$x})?$myRow->{$x}:"NULL";
+        push @val, defined($myRow->{$x})?$myRow->{$x}:"";
       }
-      $myKey = join("\t", @val);
+      $myKey = CORE::join("\t", @val);
     }
     unless (defined($X{$myKey})) {
       foreach my $s (@X_name) {

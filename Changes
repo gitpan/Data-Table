@@ -1,4 +1,7 @@
 Revision history for Perl extension Table.
+1.42 Fri Oct  8 11:56:41 PDT 2004
+  Minor changes to group and pivot, not a bug
+
 1.41 Thu Oct  7 14:04:17 CDT 2004
   Add two useful methods: group and pivot
   group can make the records unique based on given key columns
