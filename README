@@ -20,4 +20,21 @@ BUILDING
 
 PROBLEMS
 
+  1. Perl version is older than 5.005
+    The package uses operator qr, which was introduced in 5.005
+    If you have older perl versions, follow the instructions inside Table.pm.
+    The instructions are started with '###', three steps in total --
+    comment out two lines, uncomment one line.
+
+    Instructions in Table.pm looks like the following:
+
+       ### comment out next line if your perl version < 5.005 ###
+       $r = ($caseIgn)?qr/$s/i : qr/$s/;
+
+       ### comment out the next line if your perl version < 5.005
+       if ($elm =~ /$r/) {
+       ### uncomment the next line if your perl version < 5.005
+       # if ($elm =~ /$s/ || ($elm=~ /$s/i && $caseIgn)) {
+
+  2. Others
     easydatabase@yahoo.com

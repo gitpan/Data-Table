@@ -1,4 +1,5 @@
 package Data::Table;
+BEGIN { die "Your perl version is old, see README for instructions" if $] < 5.005; }
 
 use strict;
 use vars qw($VERSION @ISA @EXPORT @EXPORT_OK);
@@ -13,7 +14,7 @@ require AutoLoader;
 @EXPORT = qw(
 	
 );
-$VERSION = '1.24';
+$VERSION = '1.26';
 
 sub new {
   my ($pkg, $data, $header, $type, $enforceCheck) = @_;
@@ -445,7 +446,7 @@ sub swap{
   $self->{header}->[$c1]=$name2;
   $self->{header}->[$c2]=$name1;
   $self->{colHash}->{$name1}=$c2;
-  $self->{colHash}->{$name1}=$c1;
+  $self->{colHash}->{$name2}=$c1;
   $self->rotate() unless $self->{type};
   my $data1=$self->{data}->[$c1];
   my $data2=$self->{data}->[$c2];
@@ -637,12 +638,20 @@ sub match_string {
   $self->rotate() if $self->{type};
   @Data::Table::OK=();
   $caseIgn=0 unless defined($caseIgn);
+
+  ### comment out next line if your perl version < 5.005 ###
   $r = ($caseIgn)?qr/$s/i : qr/$s/;
+
   foreach my $row_ref (@{$self->data}) {
     push @Data::Table::OK, undef;
     foreach my $elm (@$row_ref) {
         next unless defined($elm);
-	if ($elm =~ /$r/) {
+        
+        ### comment out the next line if your perl version < 5.005
+        if ($elm =~ /$r/) {
+        ### uncomment the next line if your perl version < 5.005
+	# if ($elm =~ /$s/ || ($elm=~ /$s/i && $caseIgn)) {
+
 		push @data, $row_ref;
 		$Data::Table::OK[$#Data::Table::OK]=1;
 		last;
