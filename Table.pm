@@ -14,7 +14,7 @@ require AutoLoader;
 @EXPORT = qw(
 	
 );
-$VERSION = '1.29';
+$VERSION = '1.31';
 
 sub new {
   my ($pkg, $data, $header, $type, $enforceCheck) = @_;
@@ -26,7 +26,22 @@ sub new {
   die "new Data::Table: Size of data does not match header\n"
     if (($type && (scalar @$data) && $#{$data} != $#{$header}) ||
         (!$type && (scalar @$data) && $#{$data->[0]} != $#{$header}));
-  my $colHash= {};
+  my $colHash = checkHeader($header);
+  if ($enforceCheck && scalar @$data > 0) {
+    my $size=scalar @{$data->[0]};
+    for (my $j =1; $j<scalar @$data; $j++) {
+      die "Inconsistant array size at data[$j]" unless (scalar @{$data->[$j]} == $size);
+    }
+  } elsif (scalar @$data == 0) {
+    $type = 0;
+  }
+  my $self={ data=>$data, header=>$header, type=>$type, colHash=>$colHash};
+  return bless $self, $class;
+}
+
+sub checkHeader {
+  my $header = shift;
+  my $colHash = {};
   for (my $i = 0; $i < scalar @$header; $i++) {
     my $elm = $header->[$i];
     die "Invalid column name: $elm" unless ($elm =~ /\D/);
@@ -34,14 +49,7 @@ sub new {
     die "Header name ".$colHash->{$elm}." appears more than once" if defined($colHash->{$elm});
     $colHash->{$elm} = $i;
   }
-  if ($enforceCheck && scalar @$data > 0) {
-    my $size=scalar @{$data->[0]};
-    for (my $j =1; $j<scalar @$data; $j++) {
-      die "Inconsistant array size at data[$j]" unless (scalar @{$data->[$j]} == $size);
-    }
-  }
-  my $self={ data=>$data, header=>$header, type=>$type, colHash=>$colHash};
-  return bless $self, $class;
+  return $colHash;
 }
 
 # translate a column name into its position in the header
@@ -193,6 +201,7 @@ sub html2 {
 }
 
 # apply a $fun to each elm in a col 
+# function only has access to one element per row
 sub colMap {
   my ($self, $colID, $fun) = @_;
   my $c=$self->checkOldCol($colID);
@@ -203,6 +212,15 @@ sub colMap {
   $self->{data}->[$c] = \@tmp;
   return 1;
 } 
+
+# apply a $fun to each row in the table
+# function has access to all elements in that row
+sub colsMap {
+  my ($self, $fun) = @_;
+  $self->rotate() if $self->{type};
+  map {&$fun} @{$self->{data}};
+  return 1;
+}
 
 sub addRow {
   my ($self, $rowRef, $rowIdx) = @_;
@@ -552,9 +570,15 @@ sub rotate {
   my $newdata=[];
   my $data=$self->{data};
   $self->{type} = ($self->{type})?0:1;
-  for (my $i=$#{$data->[0]}; $i>=0; $i--) {
-    for (my $j=$#{$data}; $j>=0;  $j--) {
-      $newdata->[$i][$j]=$data->[$j][$i];
+  if ($self->{type} && scalar @$data == 0) {
+    for (my $i=0; $i < $self->nofCol; $i++) {
+      $newdata->[$i] = [];
+    }
+  } else {
+    for (my $i=$#{$data->[0]}; $i>=0; $i--) {
+      for (my $j=$#{$data}; $j>=0;  $j--) {
+        $newdata->[$i][$j]=$data->[$j][$i];
+      }
     }
   }
   $self->{data}=$newdata;
@@ -562,8 +586,18 @@ sub rotate {
 }
 
 sub header {
-  my $self = shift;
-  return @{$self->{header}};
+  my ($self, $header) = @_;
+  unless (defined($header)) {
+    return @{$self->{header}};
+  } else {
+    if (scalar @$header != scalar @{$self->{header}}) {
+      die "Header array should have size ".(scalar @{$self->{header}});
+    } else {
+      my $colHash = checkHeader($header);
+      $self->{header} = $header;
+      $self->{colHash} = $colHash;
+    }
+  }
 }
 
 sub type {
@@ -762,12 +796,22 @@ sub fromCSVi {
 }
 
 sub fromCSV {
-  my ($name, $header) = @_;
-  $header = 1 unless defined($header);
+  my ($name, $includeHeader, $header) = @_;
+  $includeHeader = 1 unless defined($includeHeader);
+  my @header;
+  my $givenHeader = 0;
+  if (defined($header) && ref($header) eq 'ARRAY') {
+    $givenHeader = 1;
+    @header= @$header;
+  }
+
   open(SRC, $name) or die "Cannot open $name to read";
   my @data = ();
   $_=<SRC>;
-  die "Empty data file" unless $_;
+  unless ($_) {
+    die "Empty data file" unless $givenHeader;
+    return new Data::Table(\@data, \@header, 0);
+  }
   my $one;
   if (/,$/) { # if the line ends by ',', the size of @one will be incorrect
               # due to the tailing of split function in perl
@@ -779,13 +823,15 @@ sub fromCSV {
   }
 # print join("|", @$one), scalar @$one, "\n";
   my $size = scalar @$one;
-  my @header;
-  if ($header) {
-    @header=@$one;
-  } else {
-    @header = map {"col$_"} (1..$size);	# name each column as col1, col2, .. etc
-    push @data, $one;
+  unless ($givenHeader) {
+    if ($includeHeader) {
+      @header = @$one;
+    } else {
+      @header = map {"col$_"} (1..$size); # name each column as col1, col2, .. etc
+    }
   }
+  push @data, $one unless ($includeHeader);
+
   while(<SRC>) {
     my $one = parseCSV($_, $size);
 #   print join("|", @$one), scalar @$one, "\n";
@@ -842,16 +888,26 @@ sub fromTSVi {
 }
 
 sub fromTSV {
-  my ($name, $header) = @_;
+  my ($name, $includeHeader, $header) = @_;
   my %ESC = ( '0'=>"\0", 'n'=>"\n", 't'=>"\t", 'r'=>"\r", 'b'=>"\b",
               "'"=>"'", '"'=>"\"", '\\'=>"\\" );
   ## what about \f? MySQL treats \f as f.
 
-  $header = 1 unless defined($header);
+  $includeHeader = 1 unless defined($includeHeader);
+  my @header;
+  my $givenHeader = 0;
+  if (defined($header) && ref($header) eq 'ARRAY') {
+    $givenHeader = 1;
+    @header= @$header;
+  }
+
   open(SRC, $name) or die "Cannot open $name to read";
   my @data = ();
   $_=<SRC>;
-  die "Empty data file" unless $_;
+  unless ($_) {
+    die "Empty data file" unless $givenHeader;
+    return new Data::Table(\@data, \@header, 0);
+  }
   chop;
   my $one;
   if (/\t$/) { # if the line ends by ',', the size of @$one will be incorrect
@@ -864,18 +920,20 @@ sub fromTSV {
   }
 # print join("|", @$one), scalar @$one, "\n";
   my $size = scalar @$one;
-  my @header;
-  if ($header) {
-    @header = map { $_ =~ s/\\([0ntrb'"\\])/$ESC{$1}/g; $_ } @$one;
-  } else {
-    @header = map {"col$_"} (1..$size); # name each column as col1, col2, .. etc    push @data, $one;
-    push @data, $one;
+  unless ($givenHeader) {
+    if ($includeHeader) {
+      @header = map { $_ =~ s/\\([0ntrb'"\\])/$ESC{$1}/g; $_ } @$one;
+    } else {
+      @header = map {"col$_"} (1..$size); # name each column as col1, col2, .. etc
+    }
   }
+  push @data, $one unless ($includeHeader);
 
   while(<SRC>) {
     chop;
     my @one = split(/\t/, $_, $size);
     for (my $i=0; $i < $size; $i++) {
+      next unless defined($one[$i]);
       if ($one[$i] eq "\\N") {
         $one[$i]=undef;
       } else {
@@ -1230,29 +1288,29 @@ Undefined $rowIdcsRef or $colIDsRef is interrpreted as all rows or all columns.
 make a clone of the original.
 It return a table object, equivalent to table::subTable(undef,undef).
 
-=item table Data::Table::fromCSV ($name, $header = 1)
+=item table Data::Table::fromCSV ($name, $inculdeHeader = 1, $header = ["col1", ... ])
 
 create a table from a CSV file.
 return a table object.
 $name: the CSV file name.
-$header: 0 or 1 to ignore/interrpret the first line in the file as column names,
-If it is set to 0, the default column names are "col1", "col2", ...
+$includeHeader: 0 or 1 to ignore/interrpret the first line in the file as column names,
+If it is set to 0, the array in $header is used. If $header is not supplied, the default column names are "col1", "col2", ...
 
-=item table table::fromCSVi ($name, $header = 1)
+=item table table::fromCSVi ($name, $inculdeHeader = 1, $header = ["col1", ... ])
 
 Same as Data::Table::fromCSV. However, this is an instant method (that's what 'i' stands for), which can be inheritated.
 
-=item table Data::Table::fromTSV ($name, $header = 1)
+=item table Data::Table::fromTSV ($name, $inculdeHeader = 1, $header = ["col1", ... ])
 
 create a table from a TSV file.
 return a table object.
 $name: the TSV file name.
-$header: 0 or 1 to ignore/interrpret the first line in the file as column names,
-If it is set to 0, the default column names are "col1", "col2", ...
+$includeHeader: 0 or 1 to ignore/interrpret the first line in the file as column names,
+If it is set to 0, the array in $header is used. If $header is not supplied, the default column names are "col1", "col2", ...
 
 Note: read "TSV FORMAT" section for details.
 
-=item table table::fromTSVi ($name, $header = 1)
+=item table table::fromTSVi ($name, $inculdeHeader = 1, $header = ["col1", ... ])
 
 Same as Data::Table::fromTSV. However, this is an instant method (that's what 'i' stands for), whic
 h can be inheritated.
@@ -1303,9 +1361,10 @@ undef if $rowIdx or $colID is invalid.
 return the reference to a table element at [$rowIdx, $colID], to allow possible modification.
 It returns undef for invalid $rowIdx or $colID. 
 
-=item refto_array table::header
+=item refto_array table::header ($header)
 
-return an array of column names.
+Without argument, it returns an array of column names.
+Otherwise, use the new header.
 
 =item int table::type
 
@@ -1465,6 +1524,14 @@ It returns 1 upon success or undef otherwise.
 foreach element in column $colID, map a function $fun to it.
 It returns 1 upon success or undef otherwise.
 This is a handy way to format a column. E.g. if a column named URL contains URL strings, colMap("URL", sub {"<a href='$_'>$_</a>"}) before html() will change each URL into a clickable hyper link while displayed in a web browser.
+
+=item int table::colsMap ($fun)
+
+foreach row in the table, map a function $fun to it.
+It can do whatever colMap can do and more.
+It returns 1 upon success or undef otherwise.
+colMap function only give $fun access to the particular element per row, while colsMap give $fun full access to all elements per row. E.g. if two columns named duration and unit (["2", "hrs"], ["30", "sec"]). colsMap(sub {$_->[0] .= " (".$_->[1].")"; } will change each row into (["2 hrs", "hrs"], ["30 sec", "sec"]).
+As show, in the $func, a column element should be referred as $_->[$colIndex].
 
 =item int table::sort($colID1, $type1, $order1, $colID2, $type2, $order2, ... )
 

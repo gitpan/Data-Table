@@ -1,5 +1,18 @@
 Revision history for Perl extension Table.
 
+1.31 Wed Sep 20 21:22:22 PDT 2001
+  add colsMap($fun), which does more than colMap can;
+  Unlike colMap, $fun here have access to multiple columns.
+  Read document for details.
+
+1.30 Wed Sep 19 20:02:52 PDT 2001
+  Improve header method, which can now take a new header argument.
+  Improve fromTSV and fromCSV, which now can take the 3rd argument --
+  if header is supplied, it will always be used (despite the 2nd argument).
+  Read document for details.
+  Fix a bug in adding a new column to a empty table.
+  Thanks for Serge Batalov.
+
 1.29  Mon Sep 17 18:18:13 CDT 2001
   a bug fixed in fromTSV
   The first line was skipped when header==0 is specified in fromTSV.

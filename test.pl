@@ -54,190 +54,195 @@ if ($t->colMap(0,$fun)) {
 } else {
   print "not ok 8 colMap\n";
 }
-$t->colMap(0,sub {return ucfirst});
-if (($row = $t->delRow(0)) && $t->nofRow==8) {
-  print "ok 9 delRow()\n";
+$fun = sub {$_->[0] = ucfirst $_->[0]};
+if ($t->colsMap($fun)) {
+  print "ok 9 colsMap\n";
 } else {
-  print "not ok 9 delRow()\n";
+  print "not ok 9 colsMap\n";
+}
+if (($row = $t->delRow(0)) && $t->nofRow==8) {
+  print "ok 10 delRow()\n";
+} else {
+  print "not ok 10 delRow()\n";
 }
 if ($t->addRow($row) && $t->nofRow==9) {
-  print "ok 10 addRow()\n";
+  print "ok 11 addRow()\n";
 } else {
-  print "not ok 10 addRow()\n";
+  print "not ok 11 addRow()\n";
 }
 if ((@rows = $t->delRows([0,2,3])) && $t->nofRow==6) {
-  print "ok 11 delRows()\n";
+  print "ok 12 delRows()\n";
 } else {
-  print "not ok 11 delRows()\n";
+  print "not ok 12 delRows()\n";
 }
 $t->addRow(shift @rows,1);
 $t->addRow(shift @rows,1);
 $t->addRow(shift @rows,0);
 if ($t->nofRow==9) {
-  print "ok 12 delRows() & addRow()\n";
+  print "ok 13 delRows() & addRow()\n";
 } else {
-  print "not ok 12 delRows() & addRow()\n";
+  print "not ok 13 delRows() & addRow()\n";
 }
 if (($col = $t->delCol("Solvent")) && $t->nofCol==5) {
-  print "ok 13 delCol()\n";
+  print "ok 14 delCol()\n";
 } else {
-  print "not ok 13 delCol()\n";
+  print "not ok 14 delCol()\n";
 }
 if ($t->addCol($col, "Solvent",2) && $t->nofCol==6) {
-  print "ok 14 addCol()\n";
+  print "ok 15 addCol()\n";
 } else {
-  print "not ok 14 addCol()\n";
+  print "not ok 15 addCol()\n";
 }
 if ((@cols = $t->delCols(["Temp, C","Amino acid","Entry"])) && $t->nofCol==3) {
-  print "ok 15 delCols()\n";
+  print "ok 16 delCols()\n";
 } else {
-  print "not ok 15 delCols()\n";
+  print "not ok 16 delCols()\n";
 }
 $t->addCol(shift @cols,"Temp, C",2);
 $t->addCol(shift @cols,"Entry",0);
 $t->addCol(shift @cols,"Amino acid",0);
 if ($t->nofCol==6) {
-  print "ok 16 delCols() & addCol()\n";
+  print "ok 17 delCols() & addCol()\n";
 } else {
-  print "not ok 16 delCols() & addCol()\n";
+  print "not ok 17 delCols() & addCol()\n";
 }
 if ($t->rowRef(3)) {
-  print "ok 17 rowRef()\n";
+  print "ok 18 rowRef()\n";
 } else {
-  print "not ok 17 rowRef()\n";
+  print "not ok 18 rowRef()\n";
 }
 if ($t->rowRefs(undef)) {
-  print "ok 18 rowRefs()\n";
+  print "ok 19 rowRefs()\n";
 } else {
-  print "not ok 18 rowRefs()\n";
+  print "not ok 19 rowRefs()\n";
 }
 if ($t->row(3)) {
-  print "ok 19 row()\n";
+  print "ok 20 row()\n";
 } else {
-  print "not ok 19 row()\n";
+  print "not ok 20 row()\n";
 }
 if ($t->colRef(3)) {
-  print "ok 20 colRef()\n";
+  print "ok 21 colRef()\n";
 } else {
-  print "not ok 20 colRef()\n";
+  print "not ok 21 colRef()\n";
 }
 if ($t->colRefs(["Temp, C", "Amino acid", "Solvent"])) {
-  print "ok 21 colRefs()\n";
+  print "ok 22 colRefs()\n";
 } else {
-  print "not ok 21 colRefs()\n";
+  print "not ok 22 colRefs()\n";
 }
 if ($t->col(3)) {
-  print "ok 22 col()\n";
+  print "ok 23 col()\n";
 } else {
-  print "not ok 22 col()\n";
+  print "not ok 23 col()\n";
 }
 if ($t->rename("Entry", "New Entry")) {
-  print "ok 23 rename()\n";
+  print "ok 24 rename()\n";
 } else {
-  print "not ok 23 rename()\n";
+  print "not ok 24 rename()\n";
 }
 $t->rename("New Entry", "Entry");
 @t = $t->col("Entry");
 $t->replace("Entry", [1..$t->nofRow()], "New Entry");
 if ($t->replace("New Entry",\@t, 'Entry')) {
-  print "ok 24 replace()\n";
+  print "ok 25 replace()\n";
 } else {
-  print "not ok 24 replace()\n";
+  print "not ok 25 replace()\n";
 }
 if ($t->swap("Amino acid","Entry")) {
-  print "ok 25 swap()\n";
+  print "ok 26 swap()\n";
 } else {
-  print "not ok 25 swap()\n";
+  print "not ok 26 swap()\n";
 }
 $t->swap("Amino acid","Entry");
 if ($t->elm(3,"Temp, C")==79) {
-  print "ok 26 elm()\n";
+  print "ok 27 elm()\n";
 } else {
-  print "not ok 26 elm()\n";
+  print "not ok 27 elm()\n";
 }
 if (${$t->elmRef(3,"Temp, C")}==79) {
-  print "ok 27 elmRef()\n";
+  print "ok 28 elmRef()\n";
 } else {
-  print "not ok 27 elmRef()\n";
+  print "not ok 28 elmRef()\n";
 }
 $t->setElm(3,"Temp, C", 100);
 if ($t->elm(3,"Temp, C")==100) {
-  print "ok 28 setElm()\n";
+  print "ok 29 setElm()\n";
 } else {
-  print "not ok 28 setElm()\n";
+  print "not ok 29 setElm()\n";
 }
 $t->setElm(3,"Temp, C",79);
 if ($t->sort('Ref No.',1,1,'Temp, C',1,0)) {
-  print "ok 29 sort()\n";
+  print "ok 30 sort()\n";
 } else {
-  print "not ok 29 sort()\n";
+  print "not ok 30 sort()\n";
 }
 if (($t2=$t->match_pattern('$_->[0] =~ /^L-a/ && $_->[3]<0.2')) && $t2->nofRow()==2) {
-  print "ok 30 match_pattern()\n";
+  print "ok 31 match_pattern()\n";
 } else {
 print $t2->csv;
-  print "not ok 30 match_pattern()\n";
+  print "not ok 31 match_pattern()\n";
 }
 if (($t2=$t->match_string('allo|cine')) && $t2->nofRow()==4) {
-  print "ok 31 match_string()\n";
+  print "ok 32 match_string()\n";
 } else {
-  print "not ok 31 match_string()\n";
+  print "not ok 32 match_string()\n";
 }
 if ($t2=$t->clone()) {
-  print "ok 32 clone()\n";
+  print "ok 33 clone()\n";
 } else {
-  print "not ok 32 clone()\n";
+  print "not ok 33 clone()\n";
 }
 if ($t2=$t->subTable([2..4],[0..($t->nofCol()-1)])) {
-  print "ok 33 subTable()\n";
+  print "ok 34 subTable()\n";
 } else {
-  print "not ok 33 subTable()\n";
+  print "not ok 34 subTable()\n";
 }
 if ($t2=$t->subTable([2..4],undef)) {
-  print "ok 34 subTable(\$rowIdcsRef,undef)\n";
+  print "ok 35 subTable(\$rowIdcsRef,undef)\n";
 } else {
-  print "not ok 34 subTable(\$rowIdcsRef,undef)\n";
+  print "not ok 35 subTable(\$rowIdcsRef,undef)\n";
 }
 if (($t2=$t->subTable(undef,[0..($t->nofCol-1)]))&& ($t2->nofRow() == 9)) {
-  print "ok 35 subTable(undef,\$colIDsRef)\n";
+  print "ok 36 subTable(undef,\$colIDsRef)\n";
 } else {
-  print "not ok 35 subTable(undef,\$colIDsRef)\n";
+  print "not ok 36 subTable(undef,\$colIDsRef)\n";
 }
 if ($t->rowMerge($t2) && $t->nofRow()==18) {
-  print "ok 36 rowMerge()\n";
+  print "ok 37 rowMerge()\n";
 } else {
-  print "not ok 36 rowMerge()\n";
+  print "not ok 37 rowMerge()\n";
 }
 $t->delRows([9..$t->nofRow-1]);
 $t2=$t->subTable([0..($t->nofRow-1)],[1]);
 $t2->rename(0, "new column");
 if ($t->colMerge($t2) && $t->nofCol()==7) {
-  print "ok 37 colMerge()\n";
+  print "ok 38 colMerge()\n";
 } else {
-  print "not ok 37 colMerge()\n";
+  print "not ok 38 colMerge()\n";
 }
 $t->delCol('new column');
 $t->sort('Entry',1,0);
 
 $t2 = Data::Table::fromTSV("aaa.tsv");
 if ($t->tsv eq $t2->tsv) {
-  print "ok 38 fromTSV and tsv\n";
+  print "ok 39 fromTSV and tsv\n";
 } else {
-  print "not ok 38 fromTSV and tsv\n";
+  print "not ok 39 fromTSV and tsv\n";
 }
 
 $t2 = $t->rowHashRef(1);
 if (scalar keys(%$t2) == $t->nofCol) {
-  print "ok 39 rowHashRef\n";
+  print "ok 40 rowHashRef\n";
 } else {
-  print "not ok 39 rowHashRef\n";
+  print "not ok 40 rowHashRef\n";
 }
 
 $t2=Data::Table::fromCSV('aaa.csv');
 if (equal($t->rowRefs(), $t2->rowRefs())) {
-  print "ok 40 looks good so far\n";
+  print "ok 41 looks good so far\n";
 } else {
-  print "not ok 40 something broke already\n";
+  print "not ok 41 something broke already\n";
 }
 
 $t2->rename(0,'New1');
@@ -250,49 +255,59 @@ $t2->delRows([2,3,4]);
 $t->delRows([0,8]);
 $t3 = $t->join($t2, 0, [0,1], [0,1]);
 if ($t3->nofRow == 4) {
-  print "ok 41 join: inner\n";
+  print "ok 42 join: inner\n";
 } else {
-  print "not ok 41 join: inner\n";
+  print "not ok 42 join: inner\n";
 }
 $t3 = $t->join($t2, 1, [0,1], [0,1]);
 if ($t3->nofRow == 7) {
-  print "ok 42 join: left outer\n";
+  print "ok 43 join: left outer\n";
 } else {
-  print "not ok 42 join: left outer\n";
+  print "not ok 43 join: left outer\n";
 }
 $t3 = $t->join($t2, 2, [0,1], [0,1]);
 if ($t3->nofRow == 6) {
-  print "ok 43 join: right outer\n";
+  print "ok 44 join: right outer\n";
 } else {
-  print "not ok 43 join: right outer\n";
+  print "not ok 44 join: right outer\n";
 }
 $t3 = $t->join($t2, 3, [0,1], [0,1]);
 if ($t3->nofRow == 9) {
-  print "ok 44 join: full outer\n";
+  print "ok 45 join: full outer\n";
 } else {
-  print "not ok 44 join: full outer\n";
+  print "not ok 45 join: full outer\n";
 }
 
 $t = Data::Table->fromCSVi("aaa.csv");
 $t2=Data::Table::fromCSV('aaa.csv');
 if (equal($t->rowRefs(), $t2->rowRefs())) {
-  print "ok 45 instant method fromCSVi\n";
+  print "ok 46 instant method fromCSVi\n";
 } else {
-  print "not ok 45 instant method fromCSVi\n";
+  print "not ok 46 instant method fromCSVi\n";
 }
 $t = Data::Table->fromTSVi("aaa.tsv");
 if (equal($t->rowRefs(), $t2->rowRefs())) {
-  print "ok 46 instant method fromTSVi\n";
+  print "ok 47 instant method fromTSVi\n";
 } else {
-  print "not ok 46 instant method fromTSVi\n";
+  print "not ok 47 instant method fromTSVi\n";
 }
 
 $t2 = $t->match_string("L-proline");
 $t3 = $t->rowMask(\@Data::Table::OK, 1);
 if ($t2->nofRow == 1 && $t3->nofRow == $t->nofRow - $t2->nofRow) {
-  print "ok 47 rowMask\n";
+  print "ok 48 rowMask\n";
 } else {
-  print "not ok 47 rowMask\n";
+  print "not ok 48 rowMask\n";
+}
+
+@h = $t2->header;
+@h2 = @h;
+$h2[1] = "new name";
+$t2->header(\@h2);
+if ($t2->rename("new name", $h[1])) {
+  print "ok 49 header rename\n";
+} else {
+  print "not ok 49 header rename\n";
 }
 
 # use DBI;
@@ -311,15 +326,15 @@ package main;
 
 $foo=FOO->new([[11,12],[21,22],[31,32]],['header1','header2'],0);
 if ($foo->csv) {
-  print "ok 48 Inheritance\n";
+  print "ok 50 Inheritance\n";
 } else {
-  print "not ok 48 Inheritance\n";
+  print "not ok 50 Inheritance\n";
 }
 $foo = FOO->fromCSVi("aaa.csv");
 if ($foo->csv) {
-  print "ok 49 inheritated instant method fromCSVi\n";
+  print "ok 51 inheritated instant method fromCSVi\n";
 } else {
-  print "not ok 49 inheritated instant method fromCSVi\n";
+  print "not ok 51 inheritated instant method fromCSVi\n";
 }
 
 sub equal {
