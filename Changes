@@ -1,7 +1,11 @@
 Revision history for Perl extension Table.
 
-1.23  someday
+1.24  someday
   considering adding more support for html, hard to decide what the best implementation is.
+
+1.23  Thu Apr 12 14:36:45 PDT 2001
+  a bug in html, html2 fixed, where table element "" displayed ugly
+  introduced in version 1.21
 
 1.22  Sat Mar 25 14:30:06 PST 2001
   join method added

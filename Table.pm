@@ -13,7 +13,7 @@ require AutoLoader;
 @EXPORT = qw(
 	
 );
-$VERSION = '1.22';
+$VERSION = '1.23';
 
 sub new {
   my ($pkg, $data, $header, $type, $enforceCheck) = @_;
@@ -149,7 +149,7 @@ sub html {
     $s .= "<TR BGCOLOR=\"" . $BG_COLOR[$i%2] . "\">";
     for (my $j=0; $j<=$#{$header}; $j++) {
       $s .= "<TD>";
-      $s .= defined($data->[$i][$j])?$data->[$i][$j]:"&nbsp;";
+      $s .= (defined($data->[$i][$j]) && $data->[$i][$j] ne '')?$data->[$i][$j]:"&nbsp;";
       $s .= "</TD>";
     }
     $s .= "</TR>\n";
@@ -185,7 +185,7 @@ sub html2 {
           $header->[$i] . "</TH>";
     for (my $j=0; $j<=$#{$data->[0]}; $j++) {
       $s .= "<TD BGCOLOR=" . $BG_COLOR[$j%2] . ">";
-      $s .= defined($data->[$i][$j])?$data->[$i][$j]:'&nbsp;';
+      $s .= (defined($data->[$i][$j]) && $data->[$i][$j] ne '')?$data->[$i][$j]:'&nbsp;';
       $s .= "</TD>";
     }
     $s .= "</TR>\n";
