@@ -482,16 +482,16 @@ It returns 1 upon success or undef otherwise.
 Notice the table is rearranged as a result! This is different from perl's list sort, which returns a sorted copy while leave the original list untouched, 
 the authors feel inplace sorting is more natural.
 <P></P>
-<DT><STRONG><A NAME="item_match_pattern">table table::match_pattern ($pattern)</A></STRONG><BR>
+<DT><STRONG><A NAME="item_match_pattern">table table::match_pattern ($pattern, $countOnly)</A></STRONG><BR>
 <DD>
 return a new table consisting those rows evaluated to be true by $pattern 
-upon success or undef otherwise.
-Side effect: @Data::Table::OK stores a true/false array for the original table rows. Using it, users can find out what are the rows being selected/unselected.
-In the $pattern string, a column element should be referred as $_-&gt;[$colIndex]. E.g., match_pattern('$_-&gt;[0]&gt;3 &amp;&amp; $_-&gt;[1]=~/^L') retrieve all the rows where its first column is greater than 3 and second column starts with letter 'L'. Notice it only takes colIndex, column names are not acceptable here!
+upon success or undef otherwise. If $countOnly is set to 1, it simply returns the number of rows that matches the string without making a new copy of table. $countOnly is 0 by default.
+<P>Side effect: @Data::Table::OK stores a true/false array for the original table rows. Using it, users can find out what are the rows being selected/unselected.
+In the $pattern string, a column element should be referred as $_-&gt;[$colIndex]. E.g., match_pattern('$_-&gt;[0]&gt;3 &amp;&amp; $_-&gt;[1]=~/^L') retrieve all the rows where its first column is greater than 3 and second column starts with letter 'L'. Notice it only takes colIndex, column names are not acceptable here!</P>
 <P></P>
-<DT><STRONG><A NAME="item_match_string">table table::match_string ($s, $caseIgnore)</A></STRONG><BR>
+<DT><STRONG><A NAME="item_match_string">table table::match_string ($s, $caseIgnore, $countOnly)</A></STRONG><BR>
 <DD>
-return a new table consisting those rows contains string $s in any of its fields upon success, undef otherwise. if $caseIgnore evaluated to true, case will is be ignored (s/$s/i).
+return a new table consisting those rows contains string $s in any of its fields upon success, undef otherwise. if $caseIgnore evaluated to true, case will is be ignored (s/$s/i). If $countOnly is set to 1, it simply returns the number of rows that matches the string without making a new copy of table. $countOnly is 0 by default.
 <P>Side effect: @Data::Table::OK stores a true/false array for the original table rows. 
 Using it, users can find out what are the rows being selected/unselected.
 The $s string is actually treated as a regular expression and 

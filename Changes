@@ -1,4 +1,15 @@
 Revision history for Perl extension Table.
+1.39 Wed Mar 26 09:33:01 CST 2003
+  Fix a bug in match_pattern, match_string and row_mask;
+  When a new table was created by these methods, deleting columns had a
+  side effect of the original parent table.
+
+1.38 Sun Jan 19 18:26:23 CST 2003
+  Change die to croak as suggested by Jeff Janes.
+
+1.37 Tue Sep 17 17:53:55 CDT 2002
+  Add $countOnly to match_string and match_pattern, thanks to Serge Batalov.
+
 1.36 Thu Sep 12 14:47:59 CDT 2002
   Add close() to both fromTSV and fromCSV, thanks to Brian Coon.
 

@@ -3,6 +3,7 @@ BEGIN { die "Your perl version is old, see README for instructions" if $] < 5.00
 
 use strict;
 use vars qw($VERSION @ISA @EXPORT @EXPORT_OK);
+use Carp;
 
 require Exporter;
 require AutoLoader;
@@ -14,7 +15,7 @@ require AutoLoader;
 @EXPORT = qw(
 	
 );
-$VERSION = '1.36';
+$VERSION = '1.39';
 
 sub new {
   my ($pkg, $data, $header, $type, $enforceCheck) = @_;
@@ -23,14 +24,14 @@ sub new {
   $header=[] unless defined($header);
   $data=[] unless defined($data);
   $enforceCheck = 1 unless defined($enforceCheck);
-  die "new Data::Table: Size of data does not match header\n"
+  croak "new Data::Table: Size of data does not match header\n"
     if (($type && (scalar @$data) && $#{$data} != $#{$header}) ||
         (!$type && (scalar @$data) && $#{$data->[0]} != $#{$header}));
   my $colHash = checkHeader($header);
   if ($enforceCheck && scalar @$data > 0) {
     my $size=scalar @{$data->[0]};
     for (my $j =1; $j<scalar @$data; $j++) {
-      die "Inconsistant array size at data[$j]" unless (scalar @{$data->[$j]} == $size);
+      croak "Inconsistant array size at data[$j]" unless (scalar @{$data->[$j]} == $size);
     }
   } elsif (scalar @$data == 0) {
     $type = 0;
@@ -44,9 +45,9 @@ sub checkHeader {
   my $colHash = {};
   for (my $i = 0; $i < scalar @$header; $i++) {
     my $elm = $header->[$i];
-    die "Invalid column name: $elm" unless ($elm =~ /\D/);
-    die "Undefined column name at \$header->[$i]" unless $elm;
-    die "Header name ".$colHash->{$elm}." appears more than once" if defined($colHash->{$elm});
+    croak "Invalid column name: $elm" unless ($elm =~ /\D/);
+    croak "Undefined column name at \$header->[$i]" unless $elm;
+    croak "Header name ".$colHash->{$elm}." appears more than once" if defined($colHash->{$elm});
     $colHash->{$elm} = $i;
   }
   return $colHash;
@@ -226,7 +227,7 @@ sub addRow {
   my ($self, $rowRef, $rowIdx) = @_;
   my $numRow=$self->nofRow();
   my @t;
-  die "addRow: size of added row does not match those in the table\n"
+  croak "addRow: size of added row does not match those in the table\n"
 	if scalar @$rowRef != $self->nofCol();
   $rowIdx=$numRow unless defined($rowIdx);
   return undef unless defined $self->checkNewRow($rowIdx);
@@ -269,7 +270,7 @@ sub addCol {
   my ($self, $colRef, $colName, $colIdx) = @_;
   my $numCol=$self->nofCol();
   my @t;
-  die "addCol: size of added col does not match rows in the table\n" 
+  croak "addCol: size of added col does not match rows in the table\n" 
 	if scalar @$colRef != $self->nofRow(); 
   $colIdx=$numCol unless defined($colIdx);
   return undef unless defined $self->checkNewCol($colIdx, $colName);
@@ -441,7 +442,7 @@ sub replace{
   unless ($oldName eq $newName) {
   	return undef unless defined $self->checkNewCol($c, $newName);
   }
-  die "New column size ".(scalar @$newColRef)." must be ".$self->nofRow() unless (scalar @$newColRef==$self->nofRow());
+  croak "New column size ".(scalar @$newColRef)." must be ".$self->nofRow() unless (scalar @$newColRef==$self->nofRow());
   $self->rename($c, $newName);
   $self->rotate() unless $self->{type};
   my $old=$self->{data}->[$c];
@@ -591,7 +592,7 @@ sub header {
     return @{$self->{header}};
   } else {
     if (scalar @$header != scalar @{$self->{header}}) {
-      die "Header array should have size ".(scalar @{$self->{header}});
+      croak "Header array should have size ".(scalar @{$self->{header}});
     } else {
       my $colHash = checkHeader($header);
       $self->{header} = $header;
@@ -649,21 +650,29 @@ sub sort {
 # return rows as sub table in which
 # a pattern $pattern is matched 
 sub match_pattern {
-  my ($self, $pattern) = @_;
+  my ($self, $pattern, $countOnly) = @_;
   my @data=();
+  $countOnly=0 unless defined($countOnly);
+  my $cnt=0;
   $self->rotate() if $self->{type};
   @Data::Table::OK= eval "map { $pattern?1:0; } \@{\$self->{data}};";
   for (my $i=0; $i<$self->nofRow(); $i++) {
-    push @data, $self->{data}->[$i] if $Data::Table::OK[$i];
+    if ($Data::Table::OK[$i]) {
+      push @data, $self->{data}->[$i] unless $countOnly;
+      $cnt++;
+    }
   }
-  return new Data::Table(\@data, \@{$self->{header}}, 0);
+  return $cnt if $countOnly;
+  my @header=@{$self->{header}};
+  return new Data::Table(\@data, \@header, 0);
 }
 
 # return rows as sub table in which 
 # a string elm in an array @$s is matched 
 sub match_string {
-  my ($self, $s, $caseIgn) = @_;
-  die unless defined($s);
+  my ($self, $s, $caseIgn, $countOnly) = @_;
+  croak unless defined($s);
+  $countOnly=0 unless defined($countOnly);
   my @data=();
   my $r;
   $self->rotate() if $self->{type};
@@ -672,6 +681,7 @@ sub match_string {
 
   ### comment out next line if your perl version < 5.005 ###
   $r = ($caseIgn)?qr/$s/i : qr/$s/;
+  my $cnt=0;
 
   foreach my $row_ref (@{$self->data}) {
     push @Data::Table::OK, undef;
@@ -683,18 +693,21 @@ sub match_string {
         ### uncomment the next line if your perl version < 5.005
 	# if ($elm =~ /$s/ || ($elm=~ /$s/i && $caseIgn)) {
 
-		push @data, $row_ref;
+		push @data, $row_ref unless $countOnly;
 		$Data::Table::OK[$#Data::Table::OK]=1;
+                $cnt++;
 		last;
    	}
     }
   }
-  return new Data::Table(\@data, \@{$self->{header}}, 0);
+  return $cnt if $countOnly;
+  my @header=@{$self->{header}};
+  return new Data::Table(\@data, \@header, 0);
 }
 	
 sub rowMask {
   my ($self, $OK, $c) = @_;
-  die unless defined($OK);
+  croak unless defined($OK);
   $c = 0 unless defined ($c);
   my @data=();
   $self->rotate() if $self->{type};
@@ -706,12 +719,13 @@ sub rowMask {
       push @data, $data0->[$i] if $OK->[$i];
     }
   }
-  return new Data::Table(\@data, \@{$self->{header}}, 0);
+  my @header=@{$self->{header}};
+  return new Data::Table(\@data, \@header, 0);
 }
 
 sub rowMerge {
   my ($self, $tbl) = @_;
-  die "Tables must have the same number of columns" unless ($self->nofCol()==$tbl->nofCol());
+  croak "Tables must have the same number of columns" unless ($self->nofCol()==$tbl->nofCol());
   $self->rotate() if $self->{type};
   $tbl->rotate() if $tbl->{type};
   my $data=$self->{data};
@@ -723,10 +737,10 @@ sub rowMerge {
 
 sub colMerge {
   my ($self, $tbl) = @_;
-  die "Tables must have the same number of rows" unless ($self->nofRow()==$tbl->nofRow());
+  croak "Tables must have the same number of rows" unless ($self->nofRow()==$tbl->nofRow());
   my $col;
   foreach $col ($tbl->header) {
-    die "Duplicate column $col in two tables" if defined($self->{colHash}->{$col});
+    croak "Duplicate column $col in two tables" if defined($self->{colHash}->{$col});
   }
   my $i = $self->nofCol();
   foreach $col ($tbl->header) {
@@ -805,11 +819,11 @@ sub fromCSV {
     @header= @$header;
   }
 
-  open(SRC, $name) or die "Cannot open $name to read";
+  open(SRC, $name) or croak "Cannot open $name to read";
   my @data = ();
   $_=<SRC>;
   unless ($_) {
-    die "Empty data file" unless $givenHeader;
+    croak "Empty data file" unless $givenHeader;
     return new Data::Table(\@data, \@header, 0);
   }
   my $one;
@@ -835,7 +849,7 @@ sub fromCSV {
   while(<SRC>) {
     my $one = parseCSV($_, $size);
 #   print join("|", @$one), scalar @$one, "\n";
-    die "Inconsistant column number at data entry: ".($#data+1) unless ($size==scalar @$one);
+    croak "Inconsistant column number at data entry: ".($#data+1) unless ($size==scalar @$one);
     push @data, $one;
   }
   close(SRC);
@@ -903,11 +917,11 @@ sub fromTSV {
     @header= @$header;
   }
 
-  open(SRC, $name) or die "Cannot open $name to read";
+  open(SRC, $name) or croak "Cannot open $name to read";
   my @data = ();
   $_=<SRC>;
   unless ($_) {
-    die "Empty data file" unless $givenHeader;
+    croak "Empty data file" unless $givenHeader;
     return new Data::Table(\@data, \@header, 0);
   }
   chop;
@@ -942,7 +956,7 @@ sub fromTSV {
         $one[$i] =~ s/\\([0ntrb'"\\])/$ESC{$1}/g;
       }
     }
-    die "Inconsistant column number at data entry: ".($#data+1) unless ($size==scalar @one);
+    croak "Inconsistant column number at data entry: ".($#data+1) unless ($size==scalar @one);
     push @data, \@one;
   }
   close(SRC);
@@ -957,9 +971,9 @@ sub fromSQLi {
 sub fromSQL {
   my ($dbh, $sql, $vars) = @_;
   my ($sth, $header, $t);
-  $sth = $dbh->prepare($sql) or die "Preparing: , ".$dbh::errstr;
+  $sth = $dbh->prepare($sql) or croak "Preparing: , ".$dbh->errstr;
   my @vars=() unless defined $vars;
-  $sth->execute(@$vars) or die "Executing: , ".$dbh::errstr;
+  $sth->execute(@$vars) or croak "Executing: ".$dbh->errstr;
 #  $Data::Table::ID = undef;
 #  $Data::Table::ID = $sth->{'mysql_insertid'};
   if ($sth->{NUM_OF_FIELDS}) {
@@ -976,15 +990,15 @@ sub join {
   my ($self, $tbl, $type, $cols1, $cols2) = @_;
   my $n1 = scalar @$cols1;
   my $n2 = scalar @$cols2;
-  die "The number of join columns must be the same: $n1 != $n2" unless $n1==$n2;
-  die "At least one join column must be specified" unless $n1;
+  croak "The number of join columns must be the same: $n1 != $n2" unless $n1==$n2;
+  croak "At least one join column must be specified" unless $n1;
   my ($i, $j);
   my @cols3 = ();
   for ($i = 0; $i < $n1; $i++) {
     $cols1->[$i]=$self->checkOldCol($cols1->[$i]);
-    die "Unknown column ". $cols1->[$i] unless defined($cols1->[$i]);
+    croak "Unknown column ". $cols1->[$i] unless defined($cols1->[$i]);
     $cols2->[$i]=$tbl->checkOldCol($cols2->[$i]);
-    die "Unknown column ". $cols2->[$i] unless defined($cols2->[$i]);
+    croak "Unknown column ". $cols2->[$i] unless defined($cols2->[$i]);
     $cols3[$cols2->[$i]]=1;
   }
   my @cols4 = (); # the list of remaining columns
@@ -1551,16 +1565,17 @@ It returns 1 upon success or undef otherwise.
 Notice the table is rearranged as a result! This is different from perl's list sort, which returns a sorted copy while leave the original list untouched, 
 the authors feel inplace sorting is more natural.
 
-=item table table::match_pattern ($pattern)
+=item table table::match_pattern ($pattern, $countOnly)
 
 return a new table consisting those rows evaluated to be true by $pattern 
-upon success or undef otherwise.
+upon success or undef otherwise. If $countOnly is set to 1, it simply returns the number of rows that matches the string without making a new copy of table. $countOnly is 0 by default.
+
 Side effect: @Data::Table::OK stores a true/false array for the original table rows. Using it, users can find out what are the rows being selected/unselected.
 In the $pattern string, a column element should be referred as $_->[$colIndex]. E.g., match_pattern('$_->[0]>3 && $_->[1]=~/^L') retrieve all the rows where its first column is greater than 3 and second column starts with letter 'L'. Notice it only takes colIndex, column names are not acceptable here!
 
-=item table table::match_string ($s, $caseIgnore)
+=item table table::match_string ($s, $caseIgnore, $countOnly)
 
-return a new table consisting those rows contains string $s in any of its fields upon success, undef otherwise. if $caseIgnore evaluated to true, case will is be ignored (s/$s/i).
+return a new table consisting those rows contains string $s in any of its fields upon success, undef otherwise. if $caseIgnore evaluated to true, case will is be ignored (s/$s/i). If $countOnly is set to 1, it simply returns the number of rows that matches the string without making a new copy of table. $countOnly is 0 by default.
 
 Side effect: @Data::Table::OK stores a true/false array for the original table rows. 
 Using it, users can find out what are the rows being selected/unselected.
