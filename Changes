@@ -1,4 +1,10 @@
 Revision history for Perl extension Table.
+1.36 Thu Sep 12 14:47:59 CDT 2002
+  Add close() to both fromTSV and fromCSV, thanks to Brian Coon.
+
+1.35 Mon Jul  1 13:04:43 PDT 2002
+  Optimization in parseCSV, thanks to Jeff Janes.
+
 1.34 Wed May  1 12:13:33 CDT 2002
   Fix a bug in colMerge
 

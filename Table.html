@@ -61,7 +61,7 @@
     [&quot;John&quot;, 20],
     [&quot;Kate&quot;, 18],
     [&quot;Mike&quot;, 23]
-  ]
+  ];
   $t = new Data::Table($data, $header, 0);      # Construct a table object with
                                         # $data, $header, $type=0 (consider 
                                         # $data as the rows of the table).
@@ -314,7 +314,7 @@ undef if $rowIdx or $colID is invalid.
 return the reference to a table element at [$rowIdx, $colID], to allow possible modification.
 It returns undef for invalid $rowIdx or $colID.
 <P></P>
-<DT><STRONG><A NAME="item_header">refto_array table::header ($header)</A></STRONG><BR>
+<DT><STRONG><A NAME="item_header">array table::header ($header)</A></STRONG><BR>
 <DD>
 Without argument, it returns an array of column names.
 Otherwise, use the new header.

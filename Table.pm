@@ -14,7 +14,7 @@ require AutoLoader;
 @EXPORT = qw(
 	
 );
-$VERSION = '1.34';
+$VERSION = '1.36';
 
 sub new {
   my ($pkg, $data, $header, $type, $enforceCheck) = @_;
@@ -838,6 +838,7 @@ sub fromCSV {
     die "Inconsistant column number at data entry: ".($#data+1) unless ($size==scalar @$one);
     push @data, $one;
   }
+  close(SRC);
   return new Data::Table(\@data, \@header, 0);
 }
 
@@ -853,6 +854,7 @@ sub parseCSV {
   my ($s, $size)=@_;
   $size = 0 unless defined $size;
   $s =~ s/\n$//; # chop
+  return [split /,/, $s , $size] if -1==index $s,'"';
   $s =~ s/\\/\\\\/g; # escape \ => \\
   my $n = length($s);
   my ($q, $i)=(0, 0);
@@ -943,6 +945,7 @@ sub fromTSV {
     die "Inconsistant column number at data entry: ".($#data+1) unless ($size==scalar @one);
     push @data, \@one;
   }
+  close(SRC);
   return new Data::Table(\@data, \@header, 0);
 }
 
