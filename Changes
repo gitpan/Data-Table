@@ -1,4 +1,13 @@
 Revision history for Perl extension Table.
+1.41 Thu Oct  7 14:04:17 CDT 2004
+  Add two useful methods: group and pivot
+  group can make the records unique based on given key columns
+  pivot is handy to transfer database table into a more user readable format
+  group+pivot make accounting operations easy, please read the document for details.
+
+  Due to the spam, please use the following for email contact
+    easydatabase at hotmail dot com
+
 1.40 Wed Oct 15 12:11:11 CDT 2003
   Patch colMap, as suggested by Jeff Janes
 

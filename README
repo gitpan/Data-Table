@@ -37,4 +37,5 @@ PROBLEMS
        # if ($elm =~ /$s/ || ($elm=~ /$s/i && $caseIgn)) {
 
   2. Others
-    easydatabase@yahoo.com
+    # easydatabase@yahoo.com # this email account has been flooded by spam, please use below
+    easydatabase at hotmail dot com

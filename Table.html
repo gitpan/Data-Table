@@ -115,6 +115,38 @@
   $t2=$t-&gt;clone();                      # Make a copy of the table.
   $t-&gt;rowMerge($t2);                    # Merge two tables
   $t-&gt;colMerge($t2);</PRE>
+<PRE>
+  $t = new Data::Table(                 # create an employ salary table
+    [
+      ['Tom', 'male', 'IT', 65000],
+      ['John', 'male', 'IT', 75000],
+      ['Tom', 'male', 'IT', 65000],
+      ['John', 'male', 'IT', 75000],
+      ['Peter', 'male', 'HR', 85000],
+      ['Mary', 'female', 'HR', 80000],
+      ['Nancy', 'female', 'IT', 55000],
+      ['Jack', 'male', 'IT', 88000],
+      ['Susan', 'female', 'HR', 92000]
+    ],
+    ['Name', 'Sex', 'Department', 'Salary'], 0);
+</PRE>
+<PRE>
+
+  sub average {  # this is an subroutine calculate mathematical average, ignore NULL
+    my @data = @_;
+    my ($sum, $n) = (0, 0);
+    foreach $x (@data) {
+      next unless $x;
+      $sum += $x; $n++;
+    }
+    return ($n&gt;0)?$sum/$n:undef;
+  }</PRE>
+<PRE>
+
+  $t2 = $t-&gt;group([&quot;Department&quot;,&quot;Sex&quot;],[&quot;Name&quot;, &quot;Salary&quot;], [sub {scalar @_}, \&amp;average], [&quot;Nof Employee&quot;, &quot;Average Salary&quot;]);
+  # For each (Department,Sex) pair, calculate the number of employees and average salary
+  $t2 = $t2-&gt;pivot(&quot;Sex&quot;, 0, &quot;Average Salary&quot;, [&quot;Department&quot;]);
+  # Show average salary information in a Department by Sex spreadsheet</PRE>
 <P>
 <HR>
 <H1><A NAME="abstract">ABSTRACT</A></H1>
@@ -502,6 +534,29 @@ by saying, for instance, match_string('One|Other').</P>
 <DD>
 mask is reference to an array, where elements are evaluated to be true or false. The size of the mask must be equal to the nofRow of the table. return a new table consisting those rows where the corresponding mask element is true (or false, when complement is set to true).
 <P>E.g., $t1=$tbl-&gt;match_string('keyword'); $t2=$tbl-&gt;rowMask(\@Data::Table::OK, 1) creates two new tables. $t1 contains all rows match 'keyword', while $t2 contains all other rows.</P>
+<P>mask is reference to an array, where elements are evaluated to be true or false. The size of the mask must be equal to the nofRow of the table. return
+ a new table consisting those rows where the corresponding mask element is true (or false, when complement is set to true).</P>
+<P>E.g., $t1=$tbl-&gt;match_string('keyword'); $t2=$tbl-&gt;rowMask(\@Data::Table::OK, 1) creates two new tables. $t1 contains all rows match 'keyword', while 
+$t2 contains all other rows.</P>
+<P></P>
+<DT><STRONG><A NAME="item_group">table table::group($colsToGroupBy, $colsToCalculate, $funsToApply, $newColNames)</A></STRONG><BR>
+<DD>
+Primary key columns are specified in $colsToGroupBy. All rows are grouped by primary keys first. Then for each group, an array of subroutines (in $funsToAppy) are applied to corresponding columns and yield a list of new columns (specified in $newColNames).
+<P>$colsToGroupBy, $colsToCalculate are references to array of colIDs. $funsToApply is a reference to array of subroutine references. $newColNames are a
+reference to array of new column name strings. If specified, the size of arrays pointed by $colsToCalculate, $funsToApply and $newColNames should be i
+dentical. A column may be used more than once in $colsToCalculate.</P>
+<P>E.g., an employee salary table $t contains the following columns: Name, Sex, Department, Salary. (see examples in the SYNOPSIS)</P>
+<P>$t2 = $t-&gt;group([``Department'',``Sex''],[``Name'', ``Salary''], [sub {scalar @_}, \&amp;average], [``Nof Employee'', ``Average Salary'']);</P>
+<P>Department, Sex are used together as the primary key columns, a new column ``Nof Employee'' is created by counting the number of employee names in each group, a new column ``Average Salary'' is created by averaging the Salary data falled into each group. As the result, we have the head count and average salary information for each (Department, Sex) pair. With your own functions (such as sum, product, average, standard deviation, etc), group method is very handy for accounting purpose.</P>
+<P></P>
+<DT><STRONG><A NAME="item_pivot">table table::pivot($colToSplit, $colToSplitIsNumeric, $colToFill, $colsToGroupBy, $keepRestCols)</A></STRONG><BR>
+<DD>
+Every unique values in a column (specified by $colToSplit) become a new column. undef value become ``NULL''.  If the column type is numeric (specified by $colToSplitIsNumeric), the new column names are prefixed by ``oldColumnName=''. The new cell element is filled by the value specified by $colToFill.
+<P>When primary key columns are specified by $colsToGroupBy, all records sharing the same primary key collapse into one row, with values in $colToFill filling the corresponding new columns. If $colToFill is not specified, a cell is filled with 1 if there is a corresponding data record in the original table.</P>
+<P>$colToSplit and $colToFill are colIDs. $colToSplitIsNumeric is 1/0. $colsToGroupBy is a reference to array of colIDs. $keepRestCols is 1/0, by default is 0. If $keepRestCols is off, only primary key columns and new columns are exported, otherwise, all the rest columns are exported as well.</P>
+<P>E.g., applying pivot method to the resultant table of the example of the group method.</P>
+<P>$t2-&gt;pivot(``Sex'', 0, ``Average Salary'',[``Department'']);</P>
+<P>This creates a 2x3 table, where Departments are use as row keys, Sex (female and male) become two new columns. ``Average Salary'' values are used to fill the new table elements. Used together with group method, pivot method is very handy for account type of analysis.</P>
 <P></P></DL>
 <P>
 <H2><A NAME="tabletable manipulations">Table-Table Manipulations</A></H2>

@@ -18,6 +18,7 @@ if ($t) {
 } else {
   print "not ok 1 fromCSV\n";
 }
+
 if ($t->colIndex('Grams "(a.a.)"/100g sol.') == 3) {
   print "ok 2 colIndex\n";
 } else {
@@ -310,6 +311,45 @@ if ($t2->rename("new name", $h[1])) {
   print "not ok 49 header rename\n";
 }
 
+$t = new Data::Table(
+  [
+    ['Tom', 'male', 'IT', 65000],
+    ['John', 'male', 'IT', 75000],
+    ['Peter', 'male', 'HR', 85000],
+    ['Mary', 'female', 'HR', 80000],
+    ['Nancy', 'female', 'IT', 55000],
+    ['Jack', 'male', 'IT', 88000],
+    ['Susan', 'female', 'HR', 92000]
+  ],
+  ['Name', 'Sex', 'Department', 'Salary'], 0);
+
+sub average {
+  my @data = @_;
+  my ($sum, $n) = (0, 0);
+  foreach $x (@data) {
+    next unless $x;
+    $sum += $x; $n++;
+  }
+  return ($n>0)?$sum/$n:undef;
+}
+
+$t2 = $t->group(["Department","Sex"],["Name", "Salary"], [sub {scalar @_}, \&average], ["Nof Employee", "Average Salary"]);
+if ($t2->nofRow == 4 && $t2->nofCol == 4) {
+  print "ok 50 group\n";
+} else {
+  print "not ok 50 group\n";
+}
+
+# print $t2->csv;
+
+$t2 = $t2->pivot("Sex", 0, "Average Salary", ["Department"]);
+#print $t2->html;
+if ($t2->nofRow == 2 && $t2->nofCol == 3) {
+  print "ok 51 pivot\n";
+} else {
+  print "not ok 51 pivot\n";
+}
+
 # use DBI;
 # $dbh= DBI->connect("DBI:mysql:test", "test", "") or die $dbh->errstr;
 # $t = Data::Table::fromSQL($dbh, "show tables");
@@ -326,15 +366,15 @@ package main;
 
 $foo=FOO->new([[11,12],[21,22],[31,32]],['header1','header2'],0);
 if ($foo->csv) {
-  print "ok 50 Inheritance\n";
+  print "ok 52 Inheritance\n";
 } else {
-  print "not ok 50 Inheritance\n";
+  print "not ok 52 Inheritance\n";
 }
 $foo = FOO->fromCSVi("aaa.csv");
 if ($foo->csv) {
-  print "ok 51 inheritated instant method fromCSVi\n";
+  print "ok 53 inheritated instant method fromCSVi\n";
 } else {
-  print "not ok 51 inheritated instant method fromCSVi\n";
+  print "not ok 53 inheritated instant method fromCSVi\n";
 }
 
 sub equal {
