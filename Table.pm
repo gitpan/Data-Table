@@ -13,7 +13,7 @@ require AutoLoader;
 @EXPORT = qw(
 	
 );
-$VERSION = '1.16';
+$VERSION = '1.18';
 
 sub new {
   my ($class, $data, $header, $type, $enforceCheck) = @_;
@@ -70,8 +70,19 @@ sub nofRow {
 # need to get csv specification
 sub csvEscape {
   my $s = shift;
+  return '' unless defined($s);
   $s =~ s/"/""/g;
   if ($s =~ /[",]/) { return "\"$s\""; }
+  return $s;
+}
+
+sub tsvEscape {
+  my $s = shift;
+  my %ESC = ( "\0"=>'0', "\n"=>'n', "\t"=>'t', "\r"=>'r', "\b"=>'b',
+              "'"=>"'", "\""=>'"', "\\"=>'\\' );
+  ## what about \f? MySQL treats \f as f.
+  return "\\N" unless defined($s);
+  $s =~ s/([\0\\\b\r\n\t"'])/\\$ESC{$1}/g;
   return $s;
 }
 
@@ -86,6 +97,22 @@ sub csv {
     my $data=$self->{data};
     for (my $i=0; $i<=$#{$data}; $i++) {
       $s .= join(",", map {csvEscape($_)} @{$data->[$i]}) . "\n";
+    }
+  }
+  return $s;
+}
+
+# output table in TSV format
+sub tsv {
+  my $self=shift;
+  my ($status, @t);
+  my $s=join("\t", map {tsvEscape($_)} @{$self->{header}}) . "\n";
+######  $self->rotate if $self->{type};
+  if ($self->{data}) {
+    $self->rotate() if ($self->{type});
+    my $data=$self->{data};
+    for (my $i=0; $i<=$#{$data}; $i++) {
+      $s .= join("\t", map {tsvEscape($_)} @{$data->[$i]}) . "\n";
     }
   }
   return $s;
@@ -575,7 +602,7 @@ sub match_pattern {
   my ($self, $pattern) = @_;
   my @data=();
   $self->rotate() if $self->{type};
-  @Data::Table::OK= eval "map {$pattern} \@{\$self->{data}};";
+  @Data::Table::OK= eval "map { $pattern; } \@{\$self->{data}};";
   for (my $i=0; $i<$self->nofRow(); $i++) {
     push @data, $self->{data}->[$i] if $Data::Table::OK[$i];
   }
@@ -593,6 +620,7 @@ sub match_string {
   foreach my $row_ref (@{$self->data}) {
     push @Data::Table::OK, undef;
     foreach my $elm (@$row_ref) {
+        next unless defined($elm);
 	if ($elm =~ /$s/o) {
 		push @data, $row_ref;
 		$Data::Table::OK[$#Data::Table::OK]=1;
@@ -691,7 +719,15 @@ sub fromCSV {
   my @data = ();
   $_=<SRC>;
   die "Empty data file" unless $_;
-  my $one = parseCSV($_);
+  my $one;
+  if (/,$/) { # if the line ends by ',', the size of @one will be incorrect
+              # due to the tailing of split function in perl
+    $_ .= ' '; # e.g., split $s="a," will only return a list of size 1.
+    $one = parseCSV($_);
+    $one->[$#{@$one}]='';
+  } else {
+    $one = parseCSV($_);
+  }
 # print join("|", @$one), scalar @$one, "\n";
   my $size = scalar @$one;
   my @header;
@@ -702,7 +738,7 @@ sub fromCSV {
     push @data, $one;
   }
   while(<SRC>) {
-    my $one = parseCSV($_);
+    my $one = parseCSV($_, $size);
 #   print join("|", @$one), scalar @$one, "\n";
     die "Inconsistant column number at data entry: ".($#data+1) unless ($size==scalar @$one);
     push @data, $one;
@@ -719,7 +755,8 @@ sub fromCSV {
 # This parser will never be crashed by any illegal CSV format,
 # it always return an array!
 sub parseCSV {
-  my $s=shift;
+  my ($s, $size)=@_;
+  $size = 0 unless defined $size;
   $s =~ s/\n$//; # chop
   $s =~ s/\\/\\\\/; # escape \ => \\
   my $n = length($s);
@@ -735,11 +772,11 @@ sub parseCSV {
       $q++;
     }
   }
-  $s =~ s/^"|"$//g; # get rid of boundary ", then restore "" => "
+  $s =~ s/(^")|("\s*$)//g; # get rid of boundary ", then restore "" => "
   $s =~ s/",/,/g;
   $s =~ s/,"/,/g;
   $s =~ s/""/"/g;
-  my @parts=split(/,/, $s);
+  my @parts=split(/,/, $s, $size);
   @parts = map {$_ =~ s/\\c/,/g; $_ =~ s/\\\\/\\/g; $_ } @parts;
 #  my @parts2=();
 #  foreach $s2 (@parts) {
@@ -748,6 +785,52 @@ sub parseCSV {
 #    push @parts2, $s2;
 #  }
   return \@parts;
+}
+
+sub fromTSV {
+  my ($name, $header) = @_;
+  my %ESC = ( '0'=>"\0", 'n'=>"\n", 't'=>"\t", 'r'=>"\r", 'b'=>"\b",
+              "'"=>"'", '"'=>"\"", '\\'=>"\\" );
+  ## what about \f? MySQL treats \f as f.
+
+  $header = 1 unless defined($header);
+  open(SRC, $name) or die "Cannot open $name to read";
+  my @data = ();
+  $_=<SRC>;
+  die "Empty data file" unless $_;
+  chop;
+  my $one;
+  if (/\t$/) { # if the line ends by ',', the size of @$one will be incorrect
+              # due to the tailing of split function in perl
+    $_ .= ' '; # e.g., split $s="a," will only return a list of size 1.
+    @$one = split(/\t/, $_);
+    $one->[$#{@$one}]='';
+  } else {
+    @$one = split(/\t/, $_);
+  }
+# print join("|", @$one), scalar @$one, "\n";
+  my $size = scalar @$one;
+  my @header;
+  if ($header) {
+    @header = map { $_ =~ s/\\([0ntrb'"\\])/$ESC{$1}/g; $_ } @$one;
+  } else {
+    @header = map {"col$_"} (1..$size); # name each column as col1, col2, .. etc    push @data, $one;
+  }
+
+  while(<SRC>) {
+    chop;
+    my @one = split(/\t/, $_, $size);
+    for (my $i=0; $i < $size; $i++) {
+      if ($one[$i] eq "\\N") {
+        $one[$i]=undef;
+      } else {
+        $one[$i] =~ s/\\([0ntrb'"\\])/$ESC{$1}/g;
+      }
+    }
+    die "Inconsistant column number at data entry: ".($#data+1) unless ($size==scalar @one);
+    push @data, \@one;
+  }
+  return new Data::Table(\@data, \@header, 0);
 }
 
 sub fromSQL {

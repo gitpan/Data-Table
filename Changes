@@ -1,5 +1,19 @@
 Revision history for Perl extension Table.
 
+1.18
+  Fix the problem in Data::Table::fromCSV caused by null trailing fields.
+  E.g., a line "a,b,," in a csv file was split into two fields before.
+
+  Fix the warning message in Data::Table::match_string, when table contains
+  an undef element.
+
+  Add Data::Table::fromTSV and Data::Table:tsv
+  TSV - tab-deliminated file format. TSV preserves NULL element and line-break
+  chars in a table.
+    \0, \\, \r, \b, \n, \t are slash-escaped.
+    undef is escaped into \N.
+  This is based on MySQL specification.
+
 1.16  Fri Sep 29 22:18:06 PDT 2000
   Package name changed from Table to Data::Table, due to
   name collision with PerlQt

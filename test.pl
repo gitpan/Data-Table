@@ -6,7 +6,7 @@
 # Change 1..1 below to 1..last_test_to_print .
 # (It may become useful if the test is moved to ./t subdirectory.)
 
-BEGIN { $| = 1; print "1..39\n"; }
+BEGIN { $| = 1; print "1..40\n"; }
 END {print "not ok 1\n" unless $loaded;}
 use Data::Table;
 $loaded = 1;
@@ -175,6 +175,7 @@ if ($t->sort('Ref No.',1,1,'Temp, C',1,0)) {
 if (($t2=$t->match_pattern('$_->[0] =~ /^L/ && $_->[3]<0.2')) && $t2->nofRow()==4) {
   print "ok 30 match_pattern()\n";
 } else {
+print $t2->csv;
   print "not ok 30 match_pattern()\n";
 }
 if (($t2=$t->match_string('allo|cine')) && $t2->nofRow()==4) {
@@ -218,18 +219,24 @@ if ($t->colMerge($t2) && $t->nofCol()==7) {
 $t->delCol('new column');
 $t->sort('Entry',1,0);
 
-# use DBI;
-# $dbh= DBI->connect("DBI:mysql:test", "test", "") or die $dbh->errstr;
-#print $dbh;
-# $t = Data::Table::fromSQL($dbh, "show tables");
-# print $t->csv;
+$t2 = Data::Table::fromTSV("aaa.tsv");
+if ($t->tsv eq $t2->tsv) {
+  print "ok 38 fromTSV and tsv\n";
+} else {
+  print "not ok 38 fromTSV and tsv\n";
+}
 
 $t2=Data::Table::fromCSV('aaa.csv');
 if (equal($t->rowRefs(), $t2->rowRefs())) {
-  print "ok 38 overall\n";
+  print "ok 39 overall\n";
 } else {
-  print "not ok 38 overall\n";
+  print "not ok 39 overall\n";
 }
+
+# use DBI;
+# $dbh= DBI->connect("DBI:mysql:test", "test", "") or die $dbh->errstr;
+# $t = Data::Table::fromSQL($dbh, "show tables");
+# print $t->csv;
 
 # @_ in match_
 package FOO; @ISA = qw(Data::Table);
@@ -240,9 +247,9 @@ package main;
 
 $foo=new FOO([[11,12],[21,22],[31,32]],['header1','header2'],0);
 if ($foo->csv) {
-  print "ok 39 Inheritance\n";
+  print "ok 40 Inheritance\n";
 } else {
-  print "not ok 39 Inheritance\n";
+  print "not ok 40 Inheritance\n";
 }
 
 sub equal {
