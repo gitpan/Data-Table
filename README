@@ -1,0 +1,23 @@
+Table - Data type related to database tables, spreadsheets, CSV files, HTML table displays, etc.
+
+Copyright (c) 1998-2000  Yingyao Zhou & Guangzhou Zou, England.
+
+See COPYRIGHT section in Table.pm for usage and distribution rights.
+
+The Table.pm file contains the documentation.
+You can obtained the most recent version from
+ 
+http://www.geocities.com/easydatabase/
+
+See also http://www.perl.com/CPAN/
+
+BUILDING
+
+    perl Makefile.PL
+    make
+    make test
+    make install (if the tests look okay)
+
+PROBLEMS
+
+    easydatabase@yahoo.com

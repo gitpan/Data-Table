@@ -1,0 +1,9 @@
+Revision history for Perl extension Table.
+
+1.16  Fri Sep 29 22:18:06 PDT 2000
+  Package name changed from Table to Data::Table, due to
+  name collision with PerlQt
+  first official release version
+
+1.15  Tue Sep 26 18:32:52 PDT 2000
+  submitted to CPAN
