@@ -14,7 +14,7 @@ require AutoLoader;
 @EXPORT = qw(
 	
 );
-$VERSION = '1.33';
+$VERSION = '1.34';
 
 sub new {
   my ($pkg, $data, $header, $type, $enforceCheck) = @_;
@@ -730,7 +730,7 @@ sub colMerge {
   }
   my $i = $self->nofCol();
   foreach $col ($tbl->header) {
-    push @{$self->{header}}, $tbl->header;
+    push @{$self->{header}}, $col;
     $self->{colHash}->{$col} = $i++; 
   }
   $self->rotate() unless $self->{type};
@@ -1086,7 +1086,7 @@ Data::Table - Data type related to database tables, spreadsheets, CSV/TSV files,
     ["John", 20],
     ["Kate", 18],
     ["Mike", 23]
-  ]
+  ];
   $t = new Data::Table($data, $header, 0);	# Construct a table object with
 					# $data, $header, $type=0 (consider 
 					# $data as the rows of the table).
@@ -1365,7 +1365,7 @@ undef if $rowIdx or $colID is invalid.
 return the reference to a table element at [$rowIdx, $colID], to allow possible modification.
 It returns undef for invalid $rowIdx or $colID. 
 
-=item refto_array table::header ($header)
+=item array table::header ($header)
 
 Without argument, it returns an array of column names.
 Otherwise, use the new header.
