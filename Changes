@@ -1,4 +1,7 @@
 Revision history for Perl extension Table.
+1.40 Wed Oct 15 12:11:11 CDT 2003
+  Patch colMap, as suggested by Jeff Janes
+
 1.39 Wed Mar 26 09:33:01 CST 2003
   Fix a bug in match_pattern, match_string and row_mask;
   When a new table was created by these methods, deleting columns had a

@@ -15,7 +15,7 @@ require AutoLoader;
 @EXPORT = qw(
 	
 );
-$VERSION = '1.39';
+$VERSION = '1.40';
 
 sub new {
   my ($pkg, $data, $header, $type, $enforceCheck) = @_;
@@ -209,7 +209,7 @@ sub colMap {
   return undef unless defined $c;
   $self->rotate() unless $self->{type};
   my $ref = $self->{data}->[$c];
-  my @tmp = map {&$fun($_)} @$ref;
+  my @tmp = map {scalar $fun->($_)} @$ref;
   $self->{data}->[$c] = \@tmp;
   return 1;
 } 
