@@ -14,7 +14,7 @@ require AutoLoader;
 @EXPORT = qw(
 	
 );
-$VERSION = '1.32';
+$VERSION = '1.33';
 
 sub new {
   my ($pkg, $data, $header, $type, $enforceCheck) = @_;
@@ -987,7 +987,7 @@ sub join {
   my @cols4 = (); # the list of remaining columns
   my @header2 = ();
   for ($i = 0; $i < $tbl->nofCol; $i++) {
-    if ($cols3[$i]!=1) {
+    unless (defined($cols3[$i])) {
       push @cols4, $i;
       push @header2, $tbl->{header}->[$i];
     }
@@ -1027,7 +1027,7 @@ sub join {
   my @null1 = ();
   my @null2 = ();
   $null1[$self->nofCol-1]=undef;
-  $null2[$#cols4]=undef;
+  if ($#cols4>=0) { $null2[$#cols4]=undef; }
   foreach $key (keys %H) {
     my ($rows1, $rows2) = @{$H{$key}};
     my $nr1 = scalar @$rows1;
@@ -1043,7 +1043,11 @@ sub join {
     if ($nr1 == 0 && ($type == 2 || $type == 3)) {
       for ($j = 0; $j < $nr2; $j++) {
         my @row2 = $tbl->row($rows2->[$j]);
-        push @ones, [@null1, @row2[@cols4]];
+        if ($#cols4>=0) {
+          push @ones, [@null1, @row2[@cols4]];
+        } else {
+          push @ones, [@null1];
+        } 
       }
       next;
     }
@@ -1281,39 +1285,39 @@ It returns a table object.
 $rowIdcsRef: points to an array of row indices.
 $colIDsRef: points to an array of column IDs.
 The function make a copy of selected elements from the original table. 
-Undefined $rowIdcsRef or $colIDsRef is interrpreted as all rows or all columns.
+Undefined $rowIdcsRef or $colIDsRef is interpreted as all rows or all columns.
 
 =item table table::clone
 
 make a clone of the original.
 It return a table object, equivalent to table::subTable(undef,undef).
 
-=item table Data::Table::fromCSV ($name, $inculdeHeader = 1, $header = ["col1", ... ])
+=item table Data::Table::fromCSV ($name, $includeHeader = 1, $header = ["col1", ... ])
 
 create a table from a CSV file.
 return a table object.
 $name: the CSV file name.
-$includeHeader: 0 or 1 to ignore/interrpret the first line in the file as column names,
+$includeHeader: 0 or 1 to ignore/interpret the first line in the file as column names,
 If it is set to 0, the array in $header is used. If $header is not supplied, the default column names are "col1", "col2", ...
 
-=item table table::fromCSVi ($name, $inculdeHeader = 1, $header = ["col1", ... ])
+=item table table::fromCSVi ($name, $includeHeader = 1, $header = ["col1", ... ])
 
-Same as Data::Table::fromCSV. However, this is an instant method (that's what 'i' stands for), which can be inheritated.
+Same as Data::Table::fromCSV. However, this is an instant method (that's what 'i' stands for), which can be inherited.
 
-=item table Data::Table::fromTSV ($name, $inculdeHeader = 1, $header = ["col1", ... ])
+=item table Data::Table::fromTSV ($name, $includeHeader = 1, $header = ["col1", ... ])
 
 create a table from a TSV file.
 return a table object.
 $name: the TSV file name.
-$includeHeader: 0 or 1 to ignore/interrpret the first line in the file as column names,
+$includeHeader: 0 or 1 to ignore/interpret the first line in the file as column names,
 If it is set to 0, the array in $header is used. If $header is not supplied, the default column names are "col1", "col2", ...
 
 Note: read "TSV FORMAT" section for details.
 
-=item table table::fromTSVi ($name, $inculdeHeader = 1, $header = ["col1", ... ])
+=item table table::fromTSVi ($name, $includeHeader = 1, $header = ["col1", ... ])
 
 Same as Data::Table::fromTSV. However, this is an instant method (that's what 'i' stands for), whic
-h can be inheritated.
+h can be inherited.
 
 =item table Data::Table::fromSQL ($dbh, $sql, $vars)
 
@@ -1330,7 +1334,7 @@ Hint: in MySQL, Data::Table::fromSQL($dbh, 'show tables from test') will also cr
 =item table Data::Table::fromSQLi ($dbh, $sql, $vars)
 
 Same as Data::Table::fromSQL. However, this is an instant method (that's what 'i' stands for), whic
-h can be inheritated.
+h can be inherited.
 
 =back
 

@@ -238,38 +238,38 @@ It returns a table object.
 $rowIdcsRef: points to an array of row indices.
 $colIDsRef: points to an array of column IDs.
 The function make a copy of selected elements from the original table. 
-Undefined $rowIdcsRef or $colIDsRef is interrpreted as all rows or all columns.
+Undefined $rowIdcsRef or $colIDsRef is interpreted as all rows or all columns.
 <P></P>
 <DT><STRONG><A NAME="item_table_table%3A%3Aclone">table table::clone</A></STRONG><BR>
 <DD>
 make a clone of the original.
 It return a table object, equivalent to table::subTable(undef,undef).
 <P></P>
-<DT><STRONG><A NAME="item_fromCSV">table Data::Table::fromCSV ($name, $inculdeHeader = 1, $header = [``col1'', ... ])</A></STRONG><BR>
+<DT><STRONG><A NAME="item_fromCSV">table Data::Table::fromCSV ($name, $includeHeader = 1, $header = [``col1'', ... ])</A></STRONG><BR>
 <DD>
 create a table from a CSV file.
 return a table object.
 $name: the CSV file name.
-$includeHeader: 0 or 1 to ignore/interrpret the first line in the file as column names,
+$includeHeader: 0 or 1 to ignore/interpret the first line in the file as column names,
 If it is set to 0, the array in $header is used. If $header is not supplied, the default column names are ``col1'', ``col2'', ...
 <P></P>
-<DT><STRONG><A NAME="item_fromCSVi">table table::fromCSVi ($name, $inculdeHeader = 1, $header = [``col1'', ... ])</A></STRONG><BR>
+<DT><STRONG><A NAME="item_fromCSVi">table table::fromCSVi ($name, $includeHeader = 1, $header = [``col1'', ... ])</A></STRONG><BR>
 <DD>
-Same as Data::Table::fromCSV. However, this is an instant method (that's what 'i' stands for), which can be inheritated.
+Same as Data::Table::fromCSV. However, this is an instant method (that's what 'i' stands for), which can be inherited.
 <P></P>
-<DT><STRONG><A NAME="item_fromTSV">table Data::Table::fromTSV ($name, $inculdeHeader = 1, $header = [``col1'', ... ])</A></STRONG><BR>
+<DT><STRONG><A NAME="item_fromTSV">table Data::Table::fromTSV ($name, $includeHeader = 1, $header = [``col1'', ... ])</A></STRONG><BR>
 <DD>
 create a table from a TSV file.
 return a table object.
 $name: the TSV file name.
-$includeHeader: 0 or 1 to ignore/interrpret the first line in the file as column names,
+$includeHeader: 0 or 1 to ignore/interpret the first line in the file as column names,
 If it is set to 0, the array in $header is used. If $header is not supplied, the default column names are ``col1'', ``col2'', ...
 <P>Note: read ``TSV FORMAT'' section for details.</P>
 <P></P>
-<DT><STRONG><A NAME="item_fromTSVi">table table::fromTSVi ($name, $inculdeHeader = 1, $header = [``col1'', ... ])</A></STRONG><BR>
+<DT><STRONG><A NAME="item_fromTSVi">table table::fromTSVi ($name, $includeHeader = 1, $header = [``col1'', ... ])</A></STRONG><BR>
 <DD>
 Same as Data::Table::fromTSV. However, this is an instant method (that's what 'i' stands for), whic
-h can be inheritated.
+h can be inherited.
 <P></P>
 <DT><STRONG><A NAME="item_fromSQL">table Data::Table::fromSQL ($dbh, $sql, $vars)</A></STRONG><BR>
 <DD>
@@ -286,7 +286,7 @@ Hint: in MySQL, Data::Table::fromSQL($dbh, 'show tables from test') will also cr
 <DT><STRONG><A NAME="item_fromSQLi">table Data::Table::fromSQLi ($dbh, $sql, $vars)</A></STRONG><BR>
 <DD>
 Same as Data::Table::fromSQL. However, this is an instant method (that's what 'i' stands for), whic
-h can be inheritated.
+h can be inherited.
 <P></P></DL>
 <P>
 <H2><A NAME="table access and properties">Table Access and Properties</A></H2>

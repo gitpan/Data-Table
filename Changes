@@ -1,5 +1,9 @@
 Revision history for Perl extension Table.
 
+1.33 Wed Jan 16 17:55:34 CST 2002
+  Small patches to join method. Not a bug.
+  Thanks to Xiao-Jun Ma
+
 1.32 Sun Sep 30 16:21:02 CDT 2001
   No change, just update Table.html (forgot in version 1.31)
 
@@ -14,7 +18,7 @@ Revision history for Perl extension Table.
   if header is supplied, it will always be used (despite the 2nd argument).
   Read document for details.
   Fix a bug in adding a new column to a empty table.
-  Thanks for Serge Batalov.
+  Thanks to Serge Batalov.
 
 1.29  Mon Sep 17 18:18:13 CDT 2001
   a bug fixed in fromTSV
