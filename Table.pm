@@ -13,7 +13,7 @@ require AutoLoader;
 @EXPORT = qw(
 	
 );
-$VERSION = '1.19';
+$VERSION = '1.20';
 
 sub new {
   my ($pkg, $data, $header, $type, $enforceCheck) = @_;
@@ -630,16 +630,19 @@ sub match_pattern {
 # return rows as sub table in which 
 # a string elm in an array @$s is matched 
 sub match_string {
-  my ($self, $s) = @_;
+  my ($self, $s, $caseIgn) = @_;
   die unless defined($s);
   my @data=();
+  my $r;
   $self->rotate() if $self->{type};
   @Data::Table::OK=();
+  $caseIgn=0 unless defined($caseIgn);
+  $r = ($caseIgn)?qr/$s/i : qr/$s/;
   foreach my $row_ref (@{$self->data}) {
     push @Data::Table::OK, undef;
     foreach my $elm (@$row_ref) {
         next unless defined($elm);
-	if ($elm =~ /$s/o) {
+	if ($elm =~ /$r/) {
 		push @data, $row_ref;
 		$Data::Table::OK[$#Data::Table::OK]=1;
 		last;
@@ -1349,9 +1352,10 @@ upon success or undef otherwise.
 Side effect: @Data::Table::OK stores a true/false array for the original table rows. Using it, users can find out what are the rows being selected/unselected.
 In the $pattern string, a column element should be referred as $_->[$colIndex]. E.g., match_pattern('$_->[0]>3 && $_->[1]=~/^L') retrieve all the rows where its first column is greater than 3 and second column starts with letter 'L'. Notice it only takes colIndex, column names are not acceptable here!
 
-=item table table::match_string ($s)
+=item table table::match_string ($s, $caseIgnore)
 
-return a new table consisting those rows contains string $s in any of its fields upon success, undef otherwise.
+return a new table consisting those rows contains string $s in any of its fields upon success, undef otherwise. if $caseIgnore evaluated to true, case will is be ignored (s/$s/i).
+
 Side effect: @Data::Table::OK stores a true/false array for the original table rows. 
 Using it, users can find out what are the rows being selected/unselected.
 The $s string is actually treated as a regular expression and 

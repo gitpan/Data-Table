@@ -468,14 +468,14 @@ upon success or undef otherwise.
 Side effect: @Data::Table::OK stores a true/false array for the original table rows. Using it, users can find out what are the rows being selected/unselected.
 In the $pattern string, a column element should be referred as $_-&gt;[$colIndex]. E.g., match_pattern('$_-&gt;[0]&gt;3 &amp;&amp; $_-&gt;[1]=~/^L') retrieve all the rows where its first column is greater than 3 and second column starts with letter 'L'. Notice it only takes colIndex, column names are not acceptable here!
 <P></P>
-<DT><STRONG><A NAME="item_match_string">table table::match_string ($s)</A></STRONG><BR>
+<DT><STRONG><A NAME="item_match_string">table table::match_string ($s, $caseIgnore)</A></STRONG><BR>
 <DD>
-return a new table consisting those rows contains string $s in any of its fields upon success, undef otherwise.
-Side effect: @Data::Table::OK stores a true/false array for the original table rows. 
+return a new table consisting those rows contains string $s in any of its fields upon success, undef otherwise. if $caseIgnore evaluated to true, case will is be ignored (s/$s/i).
+<P>Side effect: @Data::Table::OK stores a true/false array for the original table rows. 
 Using it, users can find out what are the rows being selected/unselected.
 The $s string is actually treated as a regular expression and 
 applied to each row element, therefore one can actually specify several keywords 
-by saying, for instance, match_string('One|Other').
+by saying, for instance, match_string('One|Other').</P>
 <P></P></DL>
 <P>
 <H2><A NAME="tabletable manipulations">Table-Table Manipulations</A></H2>

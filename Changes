@@ -1,5 +1,11 @@
 Revision history for Perl extension Table.
 
+1.20  Wed Feb 28 12:38:53 PST 2001
+  A bug in match_string is fixed.
+  This will affect results if you change your "string" value in the program;
+  Also add a caseIgnore control argument to match_string method.
+  Thanks to Bryan Coon.
+
 1.19  Sat Feb 24 23:23:37 PST 2001
   A bug in fromSQL is fixed (caused by typo)
     This happens when user use the third argument (a reference to an array).
@@ -12,6 +18,7 @@ Revision history for Perl extension Table.
     fromCSVi
     fromTSVi
   so that these methods can be inherited.
+  Thanks to Michael Schlueter
 
   Update new method, so that it can be used as an instant method as well.
 
@@ -28,6 +35,7 @@ Revision history for Perl extension Table.
 1.18
   Fix the problem in Data::Table::fromCSV caused by null trailing fields.
   E.g., a line "a,b,," in a csv file was split into two fields before.
+  Thanks to Karsten
 
   Fix the warning message in Data::Table::match_string, when table contains
   an undef element.
