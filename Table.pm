@@ -15,7 +15,7 @@ require AutoLoader;
 @EXPORT = qw(
 	
 );
-$VERSION = '1.43';
+$VERSION = '1.44';
 
 sub new {
   my ($pkg, $data, $header, $type, $enforceCheck) = @_;
@@ -24,14 +24,14 @@ sub new {
   $header=[] unless defined($header);
   $data=[] unless defined($data);
   $enforceCheck = 1 unless defined($enforceCheck);
-  croak "new Data::Table: Size of data does not match header\n"
+  confess "new Data::Table: Size of data does not match header\n"
     if (($type && (scalar @$data) && $#{$data} != $#{$header}) ||
         (!$type && (scalar @$data) && $#{$data->[0]} != $#{$header}));
   my $colHash = checkHeader($header);
   if ($enforceCheck && scalar @$data > 0) {
     my $size=scalar @{$data->[0]};
     for (my $j =1; $j<scalar @$data; $j++) {
-      croak "Inconsistent array size at data[$j]" unless (scalar @{$data->[$j]} == $size);
+      confess "Inconsistent array size at data[$j]" unless (scalar @{$data->[$j]} == $size);
     }
   } elsif (scalar @$data == 0) {
     $type = 0;
@@ -45,9 +45,9 @@ sub checkHeader {
   my $colHash = {};
   for (my $i = 0; $i < scalar @$header; $i++) {
     my $elm = $header->[$i];
-    croak "Invalid column name: $elm" unless ($elm =~ /\D/);
-    croak "Undefined column name at \$header->[$i]" unless $elm;
-    croak "Header name ".$colHash->{$elm}." appears more than once" if defined($colHash->{$elm});
+    confess "Invalid column name: $elm" unless ($elm =~ /\D/);
+    confess "Undefined column name at \$header->[$i]" unless $elm;
+    confess "Header name ".$colHash->{$elm}." appears more than once" if defined($colHash->{$elm});
     $colHash->{$elm} = $i;
   }
   return $colHash;
@@ -99,36 +99,54 @@ sub tsvEscape {
 
 # output table in CSV format
 sub csv {
-  my ($self, $header)=@_;
+  my ($self, $header, $arg_ref)=@_;
   my ($status, @t);
   my $s = '';
+  my ($OS, $fileName) = (0, undef);
+  $OS = $arg_ref->{'OS'} if (defined($arg_ref) && defined($arg_ref->{'OS'}));
+  $fileName = $arg_ref->{'file'} if (defined($arg_ref) && defined($arg_ref->{'file'}));
+  my $endl = ($OS==2)?"\r":(($OS==1)?"\r\n":"\n");
   $header=1 unless defined($header);
-  $s=join(",", map {csvEscape($_)} @{$self->{header}}) . "\n" if $header;
+  $s=join(",", map {csvEscape($_)} @{$self->{header}}) . $endl if $header;
 ######  $self->rotate if $self->{type};
   if ($self->{data}) {
     $self->rotate() if ($self->{type});
     my $data=$self->{data};
     for (my $i=0; $i<=$#{$data}; $i++) {
-      $s .= join(",", map {csvEscape($_)} @{$data->[$i]}) . "\n";
+      $s .= join(",", map {csvEscape($_)} @{$data->[$i]}) . $endl;
     }
+  }
+  if (defined($fileName) && ref(\$fileName) eq 'SCALAR') {
+    open(OUT, "> $fileName") or confess "Cannot open $fileName to write.\n";
+    print OUT $s;
+    close(OUT);
   }
   return $s;
 }
 
 # output table in TSV format
 sub tsv {
-  my ($self, $header)=@_;
+  my ($self, $header, $arg_ref)=@_;
   my ($status, @t);
   my $s = '';
+  my ($OS, $fileName) = (0, undef);
+  $OS = $arg_ref->{'OS'} if (defined($arg_ref) && defined($arg_ref->{'OS'}));
+  $fileName = $arg_ref->{'file'} if (defined($arg_ref) && defined($arg_ref->{'file'}));
+  my $endl = ($OS==2)?"\r":(($OS==1)?"\r\n":"\n");
   $header=1 unless defined($header);
-  $s=join("\t", map {tsvEscape($_)} @{$self->{header}}) . "\n" if $header;
+  $s=join("\t", map {tsvEscape($_)} @{$self->{header}}) . $endl if $header;
 ######  $self->rotate if $self->{type};
   if ($self->{data}) {
     $self->rotate() if ($self->{type});
     my $data=$self->{data};
     for (my $i=0; $i<=$#{$data}; $i++) {
-      $s .= join("\t", map {tsvEscape($_)} @{$data->[$i]}) . "\n";
+      $s .= join("\t", map {tsvEscape($_)} @{$data->[$i]}) . $endl;
     }
+  }
+  if (defined($fileName) && ref(\$fileName) eq 'SCALAR') {
+    open(OUT, "> $fileName") or confess "Cannot open $fileName to write.\n";
+    print OUT $s;
+    close(OUT);
   }
   return $s;
 }
@@ -227,7 +245,7 @@ sub addRow {
   my ($self, $rowRef, $rowIdx) = @_;
   my $numRow=$self->nofRow();
   my @t;
-  croak "addRow: size of added row does not match those in the table\n"
+  confess "addRow: size of added row does not match those in the table\n"
 	if scalar @$rowRef != $self->nofCol();
   $rowIdx=$numRow unless defined($rowIdx);
   return undef unless defined $self->checkNewRow($rowIdx);
@@ -270,7 +288,7 @@ sub addCol {
   my ($self, $colRef, $colName, $colIdx) = @_;
   my $numCol=$self->nofCol();
   my @t;
-  croak "addCol: size of added col does not match rows in the table\n" 
+  confess "addCol: size of added col does not match rows in the table\n" 
 	if scalar @$colRef != $self->nofRow(); 
   $colIdx=$numCol unless defined($colIdx);
   return undef unless defined $self->checkNewCol($colIdx, $colName);
@@ -442,7 +460,7 @@ sub replace{
   unless ($oldName eq $newName) {
   	return undef unless defined $self->checkNewCol($c, $newName);
   }
-  croak "New column size ".(scalar @$newColRef)." must be ".$self->nofRow() unless (scalar @$newColRef==$self->nofRow());
+  confess "New column size ".(scalar @$newColRef)." must be ".$self->nofRow() unless (scalar @$newColRef==$self->nofRow());
   $self->rename($c, $newName);
   $self->rotate() unless $self->{type};
   my $old=$self->{data}->[$c];
@@ -592,7 +610,7 @@ sub header {
     return @{$self->{header}};
   } else {
     if (scalar @$header != scalar @{$self->{header}}) {
-      croak "Header array should have size ".(scalar @{$self->{header}});
+      confess "Header array should have size ".(scalar @{$self->{header}});
     } else {
       my $colHash = checkHeader($header);
       $self->{header} = $header;
@@ -671,7 +689,7 @@ sub match_pattern {
 # a string elm in an array @$s is matched 
 sub match_string {
   my ($self, $s, $caseIgn, $countOnly) = @_;
-  croak unless defined($s);
+  confess unless defined($s);
   $countOnly=0 unless defined($countOnly);
   my @data=();
   my $r;
@@ -707,7 +725,7 @@ sub match_string {
 	
 sub rowMask {
   my ($self, $OK, $c) = @_;
-  croak unless defined($OK);
+  confess unless defined($OK);
   $c = 0 unless defined ($c);
   my @data=();
   $self->rotate() if $self->{type};
@@ -725,7 +743,7 @@ sub rowMask {
 
 sub rowMerge {
   my ($self, $tbl) = @_;
-  croak "Tables must have the same number of columns" unless ($self->nofCol()==$tbl->nofCol());
+  confess "Tables must have the same number of columns" unless ($self->nofCol()==$tbl->nofCol());
   $self->rotate() if $self->{type};
   $tbl->rotate() if $tbl->{type};
   my $data=$self->{data};
@@ -737,10 +755,10 @@ sub rowMerge {
 
 sub colMerge {
   my ($self, $tbl) = @_;
-  croak "Tables must have the same number of rows" unless ($self->nofRow()==$tbl->nofRow());
+  confess "Tables must have the same number of rows" unless ($self->nofRow()==$tbl->nofRow());
   my $col;
   foreach $col ($tbl->header) {
-    croak "Duplicate column $col in two tables" if defined($self->{colHash}->{$col});
+    confess "Duplicate column $col in two tables" if defined($self->{colHash}->{$col});
   }
   my $i = $self->nofCol();
   foreach $col ($tbl->header) {
@@ -810,8 +828,12 @@ sub fromCSVi {
 }
 
 sub fromCSV {
-  my ($name, $includeHeader, $header) = @_;
+  my ($name, $includeHeader, $header, $arg_ref) = @_;
   $includeHeader = 1 unless defined($includeHeader);
+  my ($OS) = (0);
+  $OS = $arg_ref->{'OS'} if (defined($arg_ref) && defined($arg_ref->{'OS'}));
+  # OS: 0 for UNIX (\n as linebreak), 1 for Windows (\r\n as linebreak)
+  ###   2 for MAC  (\r as linebreak)
   my @header;
   my $givenHeader = 0;
   if (defined($header) && ref($header) eq 'ARRAY') {
@@ -819,11 +841,16 @@ sub fromCSV {
     @header= @$header;
   }
 
-  open(SRC, $name) or croak "Cannot open $name to read";
+  open(SRC, $name) or confess "Cannot open $name to read";
   my @data = ();
+  my $oldDelimiter=$/;
+  my $newDelimiter=($OS==2)?"\r":(($OS==1)?"\r\n":"\n");
+  $/=$newDelimiter;
   $_=<SRC>;
+  $_=~ s/$newDelimiter$//;
   unless ($_) {
-    croak "Empty data file" unless $givenHeader;
+    confess "Empty data file" unless $givenHeader;
+    $/=$oldDelimiter;
     return new Data::Table(\@data, \@header, 0);
   }
   my $one;
@@ -835,7 +862,7 @@ sub fromCSV {
   } else {
     $one = parseCSV($_);
   }
-# print join("|", @$one), scalar @$one, "\n";
+  #print join("|", @$one), scalar @$one, "\n";
   my $size = scalar @$one;
   unless ($givenHeader) {
     if ($includeHeader) {
@@ -847,12 +874,14 @@ sub fromCSV {
   push @data, $one unless ($includeHeader);
 
   while(<SRC>) {
+    $_=~ s/$newDelimiter$//;
     my $one = parseCSV($_, $size);
-#   print join("|", @$one), scalar @$one, "\n";
-    croak "Inconsistent column number at data entry: ".($#data+1) unless ($size==scalar @$one);
+    #print join("|", @$one), scalar @$one, "\n";
+    confess "Inconsistent column number at data entry: ".($#data+1) unless ($size==scalar @$one);
     push @data, $one;
   }
   close(SRC);
+  $/=$oldDelimiter;
   return new Data::Table(\@data, \@header, 0);
 }
 
@@ -867,7 +896,7 @@ sub fromCSV {
 sub parseCSV {
   my ($s, $size)=@_;
   $size = 0 unless defined $size;
-  $s =~ s/\n$//; # chop
+  # $s =~ s/\n$//; # chop" # assume extra characters has been cleaned before
   return [split /,/, $s , $size] if -1==index $s,'"';
   $s =~ s/\\/\\\\/g; # escape \ => \\
   my $n = length($s);
@@ -904,12 +933,18 @@ sub fromTSVi {
 }
 
 sub fromTSV {
-  my ($name, $includeHeader, $header) = @_;
+  my ($name, $includeHeader, $header, $arg_ref) = @_;
+  my ($OS) = (0);
+  $OS = $arg_ref->{'OS'} if (defined($arg_ref) && defined($arg_ref->{'OS'}));
+  # OS: 0 for UNIX (\n as linebreak), 1 for Windows (\r\n as linebreak)
+  ###   2 for MAC  (\r as linebreak)
   my %ESC = ( '0'=>"\0", 'n'=>"\n", 't'=>"\t", 'r'=>"\r", 'b'=>"\b",
               "'"=>"'", '"'=>"\"", '\\'=>"\\" );
   ## what about \f? MySQL treats \f as f.
 
   $includeHeader = 1 unless defined($includeHeader);
+  $OS=0 unless defined($OS);
+ 
   my @header;
   my $givenHeader = 0;
   if (defined($header) && ref($header) eq 'ARRAY') {
@@ -917,11 +952,16 @@ sub fromTSV {
     @header= @$header;
   }
 
-  open(SRC, $name) or croak "Cannot open $name to read";
+  open(SRC, $name) or confess "Cannot open $name to read";
   my @data = ();
+  my $oldDelimiter=$/;
+  my $newDelimiter=($OS==2)?"\r":(($OS==1)?"\r\n":"\n");
+  $/=$newDelimiter;
   $_=<SRC>;
+  $_=~ s/$newDelimiter$//;
   unless ($_) {
-    croak "Empty data file" unless $givenHeader;
+    confess "Empty data file" unless $givenHeader;
+    $/=$oldDelimiter;
     return new Data::Table(\@data, \@header, 0);
   }
   chop;
@@ -934,7 +974,7 @@ sub fromTSV {
   } else {
     @$one = split(/\t/, $_);
   }
-# print join("|", @$one), scalar @$one, "\n";
+  # print join("|", @$one), scalar @$one, "\n";
   my $size = scalar @$one;
   unless ($givenHeader) {
     if ($includeHeader) {
@@ -946,7 +986,8 @@ sub fromTSV {
   push @data, $one unless ($includeHeader);
 
   while(<SRC>) {
-    chop;
+    #chop;
+    $_=~ s/$newDelimiter$//;
     my @one = split(/\t/, $_, $size);
     for (my $i=0; $i < $size; $i++) {
       next unless defined($one[$i]);
@@ -956,10 +997,11 @@ sub fromTSV {
         $one[$i] =~ s/\\([0ntrb'"\\])/$ESC{$1}/g;
       }
     }
-    croak "Inconsistent column number at data entry: ".($#data+1) unless ($size==scalar @one);
+    confess "Inconsistent column number at data entry: ".($#data+1) unless ($size==scalar @one);
     push @data, \@one;
   }
   close(SRC);
+  $/=$oldDelimiter;
   return new Data::Table(\@data, \@header, 0);
 }
 
@@ -971,9 +1013,9 @@ sub fromSQLi {
 sub fromSQL {
   my ($dbh, $sql, $vars) = @_;
   my ($sth, $header, $t);
-  $sth = $dbh->prepare($sql) or croak "Preparing: , ".$dbh->errstr;
+  $sth = $dbh->prepare($sql) or confess "Preparing: , ".$dbh->errstr;
   my @vars=() unless defined $vars;
-  $sth->execute(@$vars) or croak "Executing: ".$dbh->errstr;
+  $sth->execute(@$vars) or confess "Executing: ".$dbh->errstr;
 #  $Data::Table::ID = undef;
 #  $Data::Table::ID = $sth->{'mysql_insertid'};
   if ($sth->{NUM_OF_FIELDS}) {
@@ -990,15 +1032,15 @@ sub join {
   my ($self, $tbl, $type, $cols1, $cols2) = @_;
   my $n1 = scalar @$cols1;
   my $n2 = scalar @$cols2;
-  croak "The number of join columns must be the same: $n1 != $n2" unless $n1==$n2;
-  croak "At least one join column must be specified" unless $n1;
-  my ($i, $j);
+  confess "The number of join columns must be the same: $n1 != $n2" unless $n1==$n2;
+  confess "At least one join column must be specified" unless $n1;
+  my ($i, $j, $k);
   my @cols3 = ();
   for ($i = 0; $i < $n1; $i++) {
     $cols1->[$i]=$self->checkOldCol($cols1->[$i]);
-    croak "Unknown column ". $cols1->[$i] unless defined($cols1->[$i]);
+    confess "Unknown column ". $cols1->[$i] unless defined($cols1->[$i]);
     $cols2->[$i]=$tbl->checkOldCol($cols2->[$i]);
-    croak "Unknown column ". $cols2->[$i] unless defined($cols2->[$i]);
+    confess "Unknown column ". $cols2->[$i] unless defined($cols2->[$i]);
     $cols3[$cols2->[$i]]=1;
   }
   my @cols4 = (); # the list of remaining columns
@@ -1043,7 +1085,9 @@ sub join {
   my @ones = ();
   my @null1 = ();
   my @null2 = ();
+  my @null3 = ();
   $null1[$self->nofCol-1]=undef;
+  $null3[$self->nofCol-1]=undef;
   if ($#cols4>=0) { $null2[$#cols4]=undef; }
   foreach $key (keys %H) {
     my ($rows1, $rows2) = @{$H{$key}};
@@ -1060,10 +1104,13 @@ sub join {
     if ($nr1 == 0 && ($type == 2 || $type == 3)) {
       for ($j = 0; $j < $nr2; $j++) {
         my @row2 = $tbl->row($rows2->[$j]);
+        for ($k = 0; $k< scalar @$cols1; $k++) {
+          $null3[$cols1->[$k]] = $row2[$cols2->[$k]];
+        }
         if ($#cols4>=0) {
-          push @ones, [@null1, @row2[@cols4]];
+          push @ones, [@null3, @row2[@cols4]];
         } else {
-          push @ones, [@null1];
+          push @ones, [@null3];
         } 
       }
       next;
@@ -1081,11 +1128,11 @@ sub join {
 
 sub group {
   my ($self, $colsToGroupBy, $colsToCalculate, $funsToApply, $newColNames) = @_;
-  croak "colsToGroupBy has to be specified!" unless defined($colsToGroupBy) && ref($colsToGroupBy) eq "ARRAY";
+  confess "colsToGroupBy has to be specified!" unless defined($colsToGroupBy) && ref($colsToGroupBy) eq "ARRAY";
   my @X = ();
   foreach my $x (@$colsToGroupBy) {
     my $x_idx = $self->checkOldCol($x);
-    croak "Unknown column ". $x unless defined($x_idx);
+    confess "Unknown column ". $x unless defined($x_idx);
     push @X, $x_idx;
   }
   my @Y = ();
@@ -1093,13 +1140,13 @@ sub group {
   if (defined($colsToCalculate)) {
     foreach my $y (@$colsToCalculate) {
       my $y_idx = $self->checkOldCol($y);
-      croak "Unknown column ". $y unless defined($y_idx);
+      confess "Unknown column ". $y unless defined($y_idx);
       push @Y, $y_idx;
       $Y{$y_idx} = 1;
     }
   }
   if (scalar @Y) {
-    croak "The size of colsToCalculate, funcsToApply and newColNames should be the same!\n"
+    confess "The size of colsToCalculate, funcsToApply and newColNames should be the same!\n"
       unless (scalar @Y == scalar @$funsToApply && scalar @Y == scalar @$newColNames);
   }
 
@@ -1162,7 +1209,7 @@ sub group {
         if (ref($funsToApply->[$i]) eq "CODE") {
           $ones[$rowIdx{$s}]->[$cnt+$i] = $funsToApply->[$i]->(@{$val{$Y[$i]}->{$s}});
         } else {
-          croak "The ${i}th element in the function array is not a valid reference!\n";
+          confess "The ${i}th element in the function array is not a valid reference!\n";
         }
       }
     }
@@ -1177,16 +1224,16 @@ sub pivot {
   $colToSplitIsNumeric = 1 unless defined($colToSplitIsNumeric);
   my $y = $self->checkOldCol($colToSplit);
   my $y_name = defined($y)?$self->{header}->[$y]:undef;
-  croak "Unknown column ". $colToSplit if (!defined($y) && defined($colToSplit));
+  confess "Unknown column ". $colToSplit if (!defined($y) && defined($colToSplit));
   my $z = $self->checkOldCol($colToFill);
   my $z_name = defined($z)?$self->{header}->[$z]:undef;
-  croak "Unknown column ". $colToFill if (!defined($z) && defined($colToFill));
-  croak "Cannot take colToFill, if colToSplit is 'undef'" if (defined($z) && !defined($y));
+  confess "Unknown column ". $colToFill if (!defined($z) && defined($colToFill));
+  confess "Cannot take colToFill, if colToSplit is 'undef'" if (defined($z) && !defined($y));
   my @X = ();
   if (defined($colsToGroupBy)) {
     foreach my $x (@$colsToGroupBy) {
       my $x_idx = $self->checkOldCol($x);
-      croak "Unknown column ". $x unless defined($x_idx);
+      confess "Unknown column ". $x unless defined($x_idx);
       push @X, $self->{header}->[$x_idx];
     }
   }
@@ -1534,25 +1581,34 @@ Undefined $rowIdcsRef or $colIDsRef is interpreted as all rows or all columns.
 make a clone of the original.
 It return a table object, equivalent to table::subTable(undef,undef).
 
-=item table Data::Table::fromCSV ($name, $includeHeader = 1, $header = ["col1", ... ])
+=item table Data::Table::fromCSV ($name, $includeHeader = 1, $header = ["col1", ... ], {OS=>0})
 
 create a table from a CSV file.
 return a table object.
 $name: the CSV file name.
 $includeHeader: 0 or 1 to ignore/interpret the first line in the file as column names,
 If it is set to 0, the array in $header is used. If $header is not supplied, the default column names are "col1", "col2", ...
+optional named argument OS specifies under which operating system the CSV file was generated. 0 for UNIX (default), 1 for PC and 2 for MAC. Basically linebreak is defined as "\n", "\r\n" and "\r" for three systems, respectively.
+
+The following example reads a DOS format CSV file and writes a MAC format:
+
+$t = Data::Table:fromCSV('A_DOS_CSV_FILE.csv', 1, undef, {OS=>1});
+
+$t->csv(1, {OS=>2, file=>'A_MAC_CSV_FILE.csv'});
 
 =item table table::fromCSVi ($name, $includeHeader = 1, $header = ["col1", ... ])
 
 Same as Data::Table::fromCSV. However, this is an instant method (that's what 'i' stands for), which can be inherited.
 
-=item table Data::Table::fromTSV ($name, $includeHeader = 1, $header = ["col1", ... ])
+=item table Data::Table::fromTSV ($name, $includeHeader = 1, $header = ["col1", ... ], {OS=>0})
 
 create a table from a TSV file.
 return a table object.
 $name: the TSV file name.
 $includeHeader: 0 or 1 to ignore/interpret the first line in the file as column names,
 If it is set to 0, the array in $header is used. If $header is not supplied, the default column names are "col1", "col2", ...
+optional named argument OS specifies under which operating system the TSV file was generated. 0 for UNIX (default), 1 for P
+C and 2 for MAC. Basically linebreak is defined as "\n", "\r\n" and "\r" for three systems, respectively.
 
 Note: read "TSV FORMAT" section for details.
 
@@ -1622,13 +1678,21 @@ be aware that the type of a table should be considered as volatile during method
 
 =over 4
 
-=item string table::csv
+=item string table::csv ($header, {OS=>0, file=>undef})
 
 return a string corresponding to the CSV representation of the table.
+$header controls whether to print the header line, 1 for yes, 0 for no.
+optional named argument OS specifies for which operating system the CSV file is generated. 0 for UNIX (default), 1 for P
+C and 2 for MAC. Basically linebreak is defined as "\n", "\r\n" and "\r" for three systems, respectively.
+if 'file' is given, the csv content will be written into it, besides returning the string.
 
 =item string table::tsv
 
 return a string corresponding to the TSV representation of the table.
+$header controls whether to print the header line, 1 for yes, 0 for no.
+optional named argument OS specifies for which operating system the TSV file is generated. 0 for UNIX (default), 1 for P
+C and 2 for MAC. Basically linebreak is defined as "\n", "\r\n" and "\r" for three systems, respectively.
+if 'file' is given, the tsv content will be written into it, besides returning the string.
 
 Note: read "TSV FORMAT" section for details.
 
@@ -1916,10 +1980,6 @@ Break a CSV encoded string to an array of scalars (check it out, we did it the c
 
 Encode an array of scalars into a TSV-formatted string.
 
-=item refto_array parseTSV($string)
-
-Break a TSV encoded string to an array of scalars (check it out, we did it the cool way).
-
 =back
 
 =head1 TSV FORMAT
@@ -1977,7 +2037,7 @@ It was first written by Zhou in 1998, significantly improved and maintained by Z
 This library is free software; you can redistribute it and/or modify
 it under the same terms as Perl itself.
 
-Please send bug reports and comments to: easydatabase@yahoo.com. When sending
+Please send bug reports and comments to: easydatabase at gmail dot com. When sending
 bug reports, please provide the version of Table.pm, the version of
 Perl.
 

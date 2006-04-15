@@ -1,4 +1,11 @@
 Revision history for Perl extension Table.
+1.44 Sat Apr 15 04:27:28 PDT 2006
+  Fix a bug in join (type=2 and 3)
+  When right or full join, key fields are undef for right-only entries.
+
+  modify fromCSV, fromTSV, tsv, csv subroutines to support read/write PC, Mac and UNIX files.
+  csv and tsv can take a file name and directly writes to it.
+
 1.43 Tue Nov  9 10:23:44 PST 2004
   Patch html so that valid XHTML code is generated
   Several mispelled words were corrected
