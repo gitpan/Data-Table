@@ -50,11 +50,11 @@ AR_STATIC_ARGS = cr
 DIRFILESEP = /
 NAME = Data::Table
 NAME_SYM = Data_Table
-VERSION = 1.43
+VERSION = 1.45
 VERSION_MACRO = VERSION
-VERSION_SYM = 1_43
+VERSION_SYM = 1_45
 DEFINE_VERSION = -D$(VERSION_MACRO)=\"$(VERSION)\"
-XS_VERSION = 1.43
+XS_VERSION = 1.45
 XS_VERSION_MACRO = XS_VERSION
 XS_DEFINE_VERSION = -D$(XS_VERSION_MACRO)=\"$(XS_VERSION)\"
 INST_ARCHLIB = blib/arch
@@ -169,13 +169,10 @@ PERL_ARCHIVE       =
 PERL_ARCHIVE_AFTER = 
 
 
-TO_INST_PM = Table.pm \
-	test3.pl
+TO_INST_PM = Table.pm
 
 PM_TO_BLIB = Table.pm \
-	$(INST_LIB)/Data/Table.pm \
-	test3.pl \
-	$(INST_LIB)/Data/test3.pl
+	$(INST_LIB)/Data/Table.pm
 
 
 # --- MakeMaker platform_constants section:
@@ -238,7 +235,7 @@ RCS_LABEL = rcs -Nv$(VERSION_SYM): -q
 DIST_CP = best
 DIST_DEFAULT = tardist
 DISTNAME = Data-Table
-DISTVNAME = Data-Table-1.43
+DISTVNAME = Data-Table-1.45
 
 
 # --- MakeMaker macro section:
@@ -423,7 +420,7 @@ realclean_subdirs :
 realclean purge ::  clean realclean_subdirs
 	$(RM_RF) $(INST_AUTODIR) $(INST_ARCHAUTODIR)
 	$(RM_RF) $(DISTVNAME)
-	$(RM_F)  $(INST_LIB)/Data/Table.pm $(INST_LIB)/Data/test3.pl $(MAKEFILE_OLD) $(FIRST_MAKEFILE)
+	$(RM_F)  $(INST_LIB)/Data/Table.pm $(MAKEFILE_OLD) $(FIRST_MAKEFILE)
 
 
 # --- MakeMaker metafile section:
@@ -431,7 +428,7 @@ metafile :
 	$(NOECHO) $(ECHO) '# http://module-build.sourceforge.net/META-spec.html' > META.yml
 	$(NOECHO) $(ECHO) '#XXXXXXX This is a prototype!!!  It will change in the future!!! XXXXX#' >> META.yml
 	$(NOECHO) $(ECHO) 'name:         Data-Table' >> META.yml
-	$(NOECHO) $(ECHO) 'version:      1.43' >> META.yml
+	$(NOECHO) $(ECHO) 'version:      1.45' >> META.yml
 	$(NOECHO) $(ECHO) 'version_from: Table.pm' >> META.yml
 	$(NOECHO) $(ECHO) 'installdirs:  site' >> META.yml
 	$(NOECHO) $(ECHO) 'requires:' >> META.yml
@@ -699,7 +696,7 @@ testdb_static :: testdb_dynamic
 # --- MakeMaker ppd section:
 # Creates a PPD (Perl Package Description) for a binary distribution.
 ppd:
-	$(NOECHO) $(ECHO) '<SOFTPKG NAME="$(DISTNAME)" VERSION="1,43,0,0">' > $(DISTNAME).ppd
+	$(NOECHO) $(ECHO) '<SOFTPKG NAME="$(DISTNAME)" VERSION="1,45,0,0">' > $(DISTNAME).ppd
 	$(NOECHO) $(ECHO) '    <TITLE>$(DISTNAME)</TITLE>' >> $(DISTNAME).ppd
 	$(NOECHO) $(ECHO) '    <ABSTRACT></ABSTRACT>' >> $(DISTNAME).ppd
 	$(NOECHO) $(ECHO) '    <AUTHOR></AUTHOR>' >> $(DISTNAME).ppd
@@ -715,8 +712,7 @@ ppd:
 
 pm_to_blib: $(TO_INST_PM)
 	$(NOECHO) $(PERLRUN) -MExtUtils::Install -e 'pm_to_blib({@ARGV}, '\''$(INST_LIB)/auto'\'', '\''$(PM_FILTER)'\'')'\
-	  Table.pm $(INST_LIB)/Data/Table.pm \
-	  test3.pl $(INST_LIB)/Data/test3.pl 
+	  Table.pm $(INST_LIB)/Data/Table.pm 
 	$(NOECHO) $(TOUCH) $@
 
 # --- MakeMaker selfdocument section:

@@ -15,7 +15,7 @@ require AutoLoader;
 @EXPORT = qw(
 	
 );
-$VERSION = '1.44';
+$VERSION = '1.45';
 
 sub new {
   my ($pkg, $data, $header, $type, $enforceCheck) = @_;
@@ -964,7 +964,7 @@ sub fromTSV {
     $/=$oldDelimiter;
     return new Data::Table(\@data, \@header, 0);
   }
-  chop;
+  #chop;
   my $one;
   if (/\t$/) { # if the line ends by ',', the size of @$one will be incorrect
               # due to the tailing of split function in perl

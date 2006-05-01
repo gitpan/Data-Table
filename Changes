@@ -1,4 +1,9 @@
 Revision history for Perl extension Table.
+1.45 Mon May  1 09:08:20 PDT 2006
+  Fix a bug in fromTSV
+  last column name is truncated by one character (introduced in 1.44)
+  Thanks to Albert V. Smith
+
 1.44 Sat Apr 15 04:27:28 PDT 2006
   Fix a bug in join (type=2 and 3)
   When right or full join, key fields are undef for right-only entries.
