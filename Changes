@@ -1,4 +1,14 @@
 Revision history for Perl extension Table.
+1.46 Fri May 12 21:46:26 PDT 2006
+  fromCSV, fromTSV, csv, tsv can all take either a file hander or a file name
+  Notice: to leave rooms for future development, file handler is not closed by Data::Table.
+          It's caller's responsibility to close it afterwards, if no longer used.
+  table::sort code is replaced, the old sort method is renamed to sort_v0 and is deprecated.
+  The new sort method allow user-defined sorting operators, please read manual on table::sort
+  The new sort method also runs faster in some benchmark tests.
+  A big thank to Wenbin Ye for suggestions, as well as contributing
+    both the new sort code and test examples
+
 1.45 Mon May  1 09:08:20 PDT 2006
   Fix a bug in fromTSV
   last column name is truncated by one character (introduced in 1.44)
@@ -26,7 +36,7 @@ Revision history for Perl extension Table.
   group+pivot make accounting operations easy, please read the document for details.
 
   Due to the spam, please use the following for email contact
-    easydatabase at hotmail dot com
+    easydatabase at gmail dot com
 
 1.40 Wed Oct 15 12:11:11 CDT 2003
   Patch colMap, as suggested by Jeff Janes

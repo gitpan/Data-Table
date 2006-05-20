@@ -224,7 +224,6 @@ if ($t->colMerge($t2) && $t->nofCol()==7) {
 }
 $t->delCol('new column');
 $t->sort('Entry',1,0);
-
 $t2 = Data::Table::fromTSV("aaa.tsv");
 if ($t->tsv eq $t2->tsv) {
   print "ok 39 fromTSV and tsv\n";
@@ -350,6 +349,51 @@ if ($t2->nofRow == 2 && $t2->nofCol == 3) {
   print "not ok 51 pivot\n";
 }
 
+my $s = $t2->csv;
+open my $fh, "<", \$s or die "Cannot open in-memory file\n";
+my $t_fh=Data::Table::fromCSV($fh);
+close($fh);
+if ($t_fh->csv eq $s) {
+  print "ok 52 fromCSV using file handler\n";
+} else {
+  print "not ok 52 fromCSV using file handler\n";
+}
+#print $t2->csv;
+
+my $s = $t2->tsv;
+open my $fh, "<", \$s or die "Cannot open in-memory file\n";
+my $t_fh=Data::Table::fromTSV($fh);
+close($fh);
+if ($t_fh->tsv eq $s) {
+  print "ok 53 fromTSV using file handler\n";
+} else {
+  print "not ok 53 fromTSV using file handler\n";
+}
+#print $t2->csv;
+
+$Well=["A_1", "A_2", "A_11", "A_12", "B_1", "B_2", "B_11", "B_12"];
+$t = new Data::Table([$Well], ["PlateWell"], 1);
+$t->sort("PlateWell", 1, 0);
+#print join(" ", $t->col("PlateWell"));
+# in string sorting, "A_11" and "A_12" appears before "A_2";
+my $my_sort_func = sub {
+  my @a = split /_/, $_[0];
+  my @b = split /_/, $_[1];
+  my $res = ($a[0] cmp $b[0]) || (int($a[1]) <=> int($b[1]));
+};
+$t->sort("PlateWell", $my_sort_func, 0);
+print join(" ", $t->col("PlateWell"));
+##################
+$t->sort("PlateWell", $my_sort_func, 1);
+print join(" ", $t->col("PlateWell"));
+
+
+if (join("", $t->col("PlateWell")) eq join("", @$Well)) {
+  print "ok 54 sort using custom operator\n";
+} else {
+  print "not ok 54 fromTSV custom operator\n";
+}
+
 # use DBI;
 # $dbh= DBI->connect("DBI:mysql:test", "test", "") or die $dbh->errstr;
 # $t = Data::Table::fromSQL($dbh, "show tables");
@@ -366,15 +410,15 @@ package main;
 
 $foo=FOO->new([[11,12],[21,22],[31,32]],['header1','header2'],0);
 if ($foo->csv) {
-  print "ok 52 Inheritance\n";
+  print "ok 55 Inheritance\n";
 } else {
-  print "not ok 52 Inheritance\n";
+  print "not ok 55 Inheritance\n";
 }
 $foo = FOO->fromCSVi("aaa.csv");
 if ($foo->csv) {
-  print "ok 53 inheritated instant method fromCSVi\n";
+  print "ok 56 inheritated instant method fromCSVi\n";
 } else {
-  print "not ok 53 inheritated instant method fromCSVi\n";
+  print "not ok 56 inheritated instant method fromCSVi\n";
 }
 
 sub equal {

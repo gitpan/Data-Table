@@ -15,7 +15,7 @@ require AutoLoader;
 @EXPORT = qw(
 	
 );
-$VERSION = '1.45';
+$VERSION = '1.46';
 
 sub new {
   my ($pkg, $data, $header, $type, $enforceCheck) = @_;
@@ -102,9 +102,9 @@ sub csv {
   my ($self, $header, $arg_ref)=@_;
   my ($status, @t);
   my $s = '';
-  my ($OS, $fileName) = (0, undef);
+  my ($OS, $fileName_or_handler) = (0, undef);
   $OS = $arg_ref->{'OS'} if (defined($arg_ref) && defined($arg_ref->{'OS'}));
-  $fileName = $arg_ref->{'file'} if (defined($arg_ref) && defined($arg_ref->{'file'}));
+  $fileName_or_handler = $arg_ref->{'file'} if (defined($arg_ref) && defined($arg_ref->{'file'}));
   my $endl = ($OS==2)?"\r":(($OS==1)?"\r\n":"\n");
   $header=1 unless defined($header);
   $s=join(",", map {csvEscape($_)} @{$self->{header}}) . $endl if $header;
@@ -116,10 +116,16 @@ sub csv {
       $s .= join(",", map {csvEscape($_)} @{$data->[$i]}) . $endl;
     }
   }
-  if (defined($fileName) && ref(\$fileName) eq 'SCALAR') {
-    open(OUT, "> $fileName") or confess "Cannot open $fileName to write.\n";
-    print OUT $s;
-    close(OUT);
+  if (defined($fileName_or_handler)) {
+    my $OUT;
+    my $isFileHandler = ref($fileName_or_handler) ne '';
+    if ($isFileHandler) {
+      $OUT = $fileName_or_handler;
+    } else {
+      open($OUT, "> $fileName_or_handler") or confess "Cannot open $fileName_or_handler to write.\n";
+    }
+    print $OUT $s;
+    close($OUT) unless $isFileHandler;
   }
   return $s;
 }
@@ -129,9 +135,9 @@ sub tsv {
   my ($self, $header, $arg_ref)=@_;
   my ($status, @t);
   my $s = '';
-  my ($OS, $fileName) = (0, undef);
+  my ($OS, $fileName_or_handler) = (0, undef);
   $OS = $arg_ref->{'OS'} if (defined($arg_ref) && defined($arg_ref->{'OS'}));
-  $fileName = $arg_ref->{'file'} if (defined($arg_ref) && defined($arg_ref->{'file'}));
+  $fileName_or_handler = $arg_ref->{'file'} if (defined($arg_ref) && defined($arg_ref->{'file'}));
   my $endl = ($OS==2)?"\r":(($OS==1)?"\r\n":"\n");
   $header=1 unless defined($header);
   $s=join("\t", map {tsvEscape($_)} @{$self->{header}}) . $endl if $header;
@@ -143,10 +149,16 @@ sub tsv {
       $s .= join("\t", map {tsvEscape($_)} @{$data->[$i]}) . $endl;
     }
   }
-  if (defined($fileName) && ref(\$fileName) eq 'SCALAR') {
-    open(OUT, "> $fileName") or confess "Cannot open $fileName to write.\n";
-    print OUT $s;
-    close(OUT);
+  if (defined($fileName_or_handler)) {
+    my $OUT;
+    my $isFileHandler = ref($fileName_or_handler) ne '';
+    if ($isFileHandler) {
+      $OUT = $fileName_or_handler;
+    } else {
+      open($OUT, "> $fileName_or_handler") or confess "Cannot open $fileName_or_handler to write.\n";
+    }
+    print $OUT $s;
+    close($OUT) unless $isFileHandler;;
   }
   return $s;
 }
@@ -636,7 +648,7 @@ sub data {
 #    order is 0 for ascending and 1 for descending
 #    Sorting is done with priority of colname1, colname2, ...
 
-sub sort {
+sub sort_v0 {
   my $self = shift;
   my ($str, $i) = ("", 0);
   my @cols = ();
@@ -665,6 +677,74 @@ sub sort {
   return 1;
 } 
   
+sub sort2 {
+    my $self = shift;
+    my @cols = @_;
+    confess "Parameters be in groups of three!\n" if ($#cols % 3 != 2);
+    foreach (0 .. ($#cols/3)) {
+      my $col = $self->checkOldCol($cols[$_*3]);
+      return undef unless defined $col;
+      $cols[$_*3]=$col;
+    }
+    my $func = sub {
+        my $res = 0;
+        for (my $i=0; $i<=$#cols; $i+=3) {
+            my $predicate;
+            if ($cols[$i+1] == 0) {
+                $predicate = sub { $_[0] <=> $_[1] };
+            } elsif ($cols[$i+1] == 1) {
+                $predicate = sub { $_[0] cmp $_[1] };
+            } elsif (ref $cols[$i+1] eq 'CODE') {
+                $predicate = $cols[$i+1];
+            } else {
+                confess "Sort method should be 0 (numerical), 1 (other type), or a subroutine reference!\n";
+            }
+            $res ||= $predicate->($cols[$i+2] ? ($b->[$cols[$i]], $a->[$cols[$i]]) : ($a->[$cols[$i]], $b->[$cols[$i]]));
+            return $res unless $res==0;
+        }
+        return $res;
+    };
+    $self->rotate() if $self->{type};
+    $self->{data} = [sort $func @{$self->{data}}];
+    return 1;
+}
+
+sub sort {
+    my $self = shift;
+    my @cols = @_;
+    confess "Parameters be in groups of three!\n" if ($#cols % 3 != 2);
+    foreach (0 .. ($#cols/3)) {
+      my $col = $self->checkOldCol($cols[$_*3]);
+      return undef unless defined $col;
+      $cols[$_*3]=$col;
+    }
+    my @subs=();
+    for (my $i=0; $i<=$#cols; $i+=3) {
+      my $mysub;
+      if ($cols[$i+1] == 0) {
+        $mysub = ($cols[$i+2]? sub { $_[1] <=> $_[0] } : sub { $_[0] <=> $_[1] });
+      } elsif ($cols[$i+1] == 1) {
+        $mysub = ($cols[$i+2]? sub { $_[1] cmp $_[0] } : sub { $_[0] cmp $_[1] });
+      } elsif (ref $cols[$i+1] eq 'CODE') {
+        $mysub = ($cols[$i+2]? sub { $cols[$i+1]->($_[1], $_[0]) } : $cols[$i+1]);
+      } else {
+        confess "Sort method should be 0 (numerical), 1 (other type), or a subroutine reference!\n";
+      }
+      push @subs, $mysub;
+    }
+    my $func = sub {
+      my $res = 0;
+      foreach (0 .. ($#cols/3)) {
+        $res ||= $subs[$_]->($a->[$cols[$_*3]], $b->[$cols[$_*3]]);
+        return $res unless $res==0;
+      }
+      return $res;
+    };
+    $self->rotate() if $self->{type};
+    $self->{data} = [sort $func @{$self->{data}}];
+    return 1;
+}
+
 # return rows as sub table in which
 # a pattern $pattern is matched 
 sub match_pattern {
@@ -828,7 +908,7 @@ sub fromCSVi {
 }
 
 sub fromCSV {
-  my ($name, $includeHeader, $header, $arg_ref) = @_;
+  my ($name_or_handler, $includeHeader, $header, $arg_ref) = @_;
   $includeHeader = 1 unless defined($includeHeader);
   my ($OS) = (0);
   $OS = $arg_ref->{'OS'} if (defined($arg_ref) && defined($arg_ref->{'OS'}));
@@ -840,13 +920,18 @@ sub fromCSV {
     $givenHeader = 1;
     @header= @$header;
   }
-
-  open(SRC, $name) or confess "Cannot open $name to read";
+  my $isFileHandler=ref($name_or_handler) ne "";
+  my $SRC;
+  if ($isFileHandler) {
+    $SRC = $name_or_handler; # a file handler
+  } else {
+    open($SRC, $name_or_handler) or confess "Cannot open $name_or_handler to read";
+  }
   my @data = ();
   my $oldDelimiter=$/;
   my $newDelimiter=($OS==2)?"\r":(($OS==1)?"\r\n":"\n");
   $/=$newDelimiter;
-  $_=<SRC>;
+  $_=<$SRC>;
   $_=~ s/$newDelimiter$//;
   unless ($_) {
     confess "Empty data file" unless $givenHeader;
@@ -873,14 +958,14 @@ sub fromCSV {
   }
   push @data, $one unless ($includeHeader);
 
-  while(<SRC>) {
+  while(<$SRC>) {
     $_=~ s/$newDelimiter$//;
     my $one = parseCSV($_, $size);
     #print join("|", @$one), scalar @$one, "\n";
     confess "Inconsistent column number at data entry: ".($#data+1) unless ($size==scalar @$one);
     push @data, $one;
   }
-  close(SRC);
+  close($SRC) unless $isFileHandler;
   $/=$oldDelimiter;
   return new Data::Table(\@data, \@header, 0);
 }
@@ -933,7 +1018,7 @@ sub fromTSVi {
 }
 
 sub fromTSV {
-  my ($name, $includeHeader, $header, $arg_ref) = @_;
+  my ($name_or_handler, $includeHeader, $header, $arg_ref) = @_;
   my ($OS) = (0);
   $OS = $arg_ref->{'OS'} if (defined($arg_ref) && defined($arg_ref->{'OS'}));
   # OS: 0 for UNIX (\n as linebreak), 1 for Windows (\r\n as linebreak)
@@ -951,13 +1036,18 @@ sub fromTSV {
     $givenHeader = 1;
     @header= @$header;
   }
-
-  open(SRC, $name) or confess "Cannot open $name to read";
+  my $isFileHandler=ref($name_or_handler) ne "";
+  my $SRC;
+  if ($isFileHandler) {
+    $SRC = $name_or_handler; # a file handler
+  } else {
+    open($SRC, $name_or_handler) or confess "Cannot open $name_or_handler to read";
+  }
   my @data = ();
   my $oldDelimiter=$/;
   my $newDelimiter=($OS==2)?"\r":(($OS==1)?"\r\n":"\n");
   $/=$newDelimiter;
-  $_=<SRC>;
+  $_=<$SRC>;
   $_=~ s/$newDelimiter$//;
   unless ($_) {
     confess "Empty data file" unless $givenHeader;
@@ -985,7 +1075,7 @@ sub fromTSV {
   }
   push @data, $one unless ($includeHeader);
 
-  while(<SRC>) {
+  while(<$SRC>) {
     #chop;
     $_=~ s/$newDelimiter$//;
     my @one = split(/\t/, $_, $size);
@@ -1000,7 +1090,7 @@ sub fromTSV {
     confess "Inconsistent column number at data entry: ".($#data+1) unless ($size==scalar @one);
     push @data, \@one;
   }
-  close(SRC);
+  close($SRC) unless $isFileHandler;
   $/=$oldDelimiter;
   return new Data::Table(\@data, \@header, 0);
 }
@@ -1363,7 +1453,7 @@ Data::Table - Data type related to database tables, spreadsheets, CSV/TSV files,
 					# Construct a table form an SQL 
 					# database query.
 
-  $t->sort("age", 0, 0);                # Sort by col 'age',numerical,descending
+  $t->sort("age", 0, 0);                # Sort by col 'age',numerical,ascending
   print $t->html2;                      # Print out a 'landscape' HTML Table.  
 
   $row = $t->delRow(2);			# Delete the third row (index=2).
@@ -1388,7 +1478,7 @@ Data::Table - Data type related to database tables, spreadsheets, CSV/TSV files,
   $t->colMap('name', sub {return uc});  # Map a function to a column 
   $t->sort('age',0,0,'name',1,0);	# Sort table first by the numerical 
 					# column 'age' and then by the 
-					# string column 'name' in descending
+					# string column 'name' in ascending
 					# order
   $t2=$t->match_pattern('$_->[0] =~ /^L/ && $_->[3]<0.2'); 
 					# Select the rows that matched the 
@@ -1581,11 +1671,11 @@ Undefined $rowIdcsRef or $colIDsRef is interpreted as all rows or all columns.
 make a clone of the original.
 It return a table object, equivalent to table::subTable(undef,undef).
 
-=item table Data::Table::fromCSV ($name, $includeHeader = 1, $header = ["col1", ... ], {OS=>0})
+=item table Data::Table::fromCSV ($name_or_handler, $includeHeader = 1, $header = ["col1", ... ], {OS=>0})
 
 create a table from a CSV file.
 return a table object.
-$name: the CSV file name.
+$name_or_handler: the CSV file name or an already opened file handler. If a handler is used, it's not closed upon return.
 $includeHeader: 0 or 1 to ignore/interpret the first line in the file as column names,
 If it is set to 0, the array in $header is used. If $header is not supplied, the default column names are "col1", "col2", ...
 optional named argument OS specifies under which operating system the CSV file was generated. 0 for UNIX (default), 1 for PC and 2 for MAC. Basically linebreak is defined as "\n", "\r\n" and "\r" for three systems, respectively.
@@ -1596,6 +1686,10 @@ $t = Data::Table:fromCSV('A_DOS_CSV_FILE.csv', 1, undef, {OS=>1});
 
 $t->csv(1, {OS=>2, file=>'A_MAC_CSV_FILE.csv'});
 
+open(SRC, 'A_DOS_CSV_FILE.csv') or die "Cannot open A_DOS_CSV_FILE.csv to read!";
+$t = Data::Table::fromCSV(\*SRC, 1);
+close(SRC);
+
 =item table table::fromCSVi ($name, $includeHeader = 1, $header = ["col1", ... ])
 
 Same as Data::Table::fromCSV. However, this is an instant method (that's what 'i' stands for), which can be inherited.
@@ -1604,7 +1698,7 @@ Same as Data::Table::fromCSV. However, this is an instant method (that's what 'i
 
 create a table from a TSV file.
 return a table object.
-$name: the TSV file name.
+$name: the TSV file name or an already opened file handler. If a handler is used, it's not closed upon return..
 $includeHeader: 0 or 1 to ignore/interpret the first line in the file as column names,
 If it is set to 0, the array in $header is used. If $header is not supplied, the default column names are "col1", "col2", ...
 optional named argument OS specifies under which operating system the TSV file was generated. 0 for UNIX (default), 1 for P
@@ -1858,6 +1952,23 @@ Sorting is done in the priority of colID1, colID2, ...
 It returns 1 upon success or undef otherwise. 
 Notice the table is rearranged as a result! This is different from perl's list sort, which returns a sorted copy while leave the original list untouched, 
 the authors feel inplace sorting is more natural.
+
+table::sort can take a user supplied operator, this is useful when neither numerical nor alphabetic order is correct.
+
+$Well=["A_1", "A_2", "A_11", "A_12", "B_1", "B_2", "B_11", "B_12"];
+$t = new Data::Table([$Well], ["PlateWell"], 1);
+$t->sort("PlateWell", 1, 0);
+print join(" ", $t->col("PlateWell"));
+# prints: A_1 A_11 A_12 A_2 B_1 B_11 B_12 B_2
+# in string sorting, "A_11" and "A_12" appears before "A_2";
+my $my_sort_func = sub {
+  my @a = split /_/, $_[0];
+  my @b = split /_/, $_[1];
+  my $res = ($a[0] cmp $b[0]) || (int($a[1]) <=> int($b[1]));
+};
+$t->sort("PlateWell", $my_sort_func, 0);
+print join(" ", $t->col("PlateWell"));
+# prints the correct order: A_1 A_2 A_11 A_12 B_1 B_2 B_11 B_12
 
 =item table table::match_pattern ($pattern, $countOnly)
 

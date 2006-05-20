@@ -297,12 +297,12 @@ make a clone of the original.
 It return a table object, equivalent to table::subTable(undef,undef).
 </dd>
 <p></p>
-<dt><strong><a name="item_fromcsv">table Data::Table::fromCSV ($name, $includeHeader = 1, $header = [``col1'', ... ], {OS=&gt;0})</a></strong><br />
+<dt><strong><a name="item_fromcsv">table Data::Table::fromCSV ($name_or_handler, $includeHeader = 1, $header = [``col1'', ... ], {OS=&gt;0})</a></strong><br />
 </dt>
 <dd>
 create a table from a CSV file.
 return a table object.
-$name: the CSV file name.
+$name_or_handler: the CSV file name or an already opened file handler. If a handler is used, it's not closed upon return.
 $includeHeader: 0 or 1 to ignore/interpret the first line in the file as column names,
 If it is set to 0, the array in $header is used. If $header is not supplied, the default column names are ``col1'', ``col2'', ...
 optional named argument OS specifies under which operating system the CSV file was generated. 0 for UNIX (default), 1 for PC and 2 for MAC. Basically linebreak is defined as ``\n'', ``\r\n'' and ``\r'' for three systems, respectively.
@@ -316,6 +316,11 @@ optional named argument OS specifies under which operating system the CSV file w
 <dd>
 <p>$t-&gt;csv(1, {OS=&gt;2, file=&gt;'A_MAC_CSV_FILE.csv'});</p>
 </dd>
+<dd>
+<p>open(SRC, 'A_DOS_CSV_FILE.csv') or die ``Cannot open A_DOS_CSV_FILE.csv to read!'';
+$t = Data::Table::fromCSV(\*SRC, 1);
+close(SRC);</p>
+</dd>
 <p></p>
 <dt><strong><a name="item_fromcsvi">table table::fromCSVi ($name, $includeHeader = 1, $header = [``col1'', ... ])</a></strong><br />
 </dt>
@@ -328,7 +333,7 @@ Same as Data::Table::fromCSV. However, this is an instant method (that's what 'i
 <dd>
 create a table from a TSV file.
 return a table object.
-$name: the TSV file name.
+$name: the TSV file name or an already opened file handler. If a handler is used, it's not closed upon return..
 $includeHeader: 0 or 1 to ignore/interpret the first line in the file as column names,
 If it is set to 0, the array in $header is used. If $header is not supplied, the default column names are ``col1'', ``col2'', ...
 optional named argument OS specifies under which operating system the TSV file was generated. 0 for UNIX (default), 1 for P
@@ -655,6 +660,25 @@ Sorting is done in the priority of colID1, colID2, ...
 It returns 1 upon success or undef otherwise. 
 Notice the table is rearranged as a result! This is different from perl's list sort, which returns a sorted copy while leave the original list untouched, 
 the authors feel inplace sorting is more natural.
+</dd>
+<dd>
+<p>table::sort can take a user supplied operator, this is useful when neither numerical nor alphabetic order is correct.</p>
+</dd>
+<dd>
+<p>$Well=[``A_1'', ``A_2'', ``A_11'', ``A_12'', ``B_1'', ``B_2'', ``B_11'', ``B_12''];
+$t = new Data::Table([$Well], [``PlateWell''], 1);
+$t-&gt;sort(``PlateWell'', 1, 0);
+print join(`` '', $t-&gt;col(``PlateWell''));
+# prints: A_1 A_11 A_12 A_2 B_1 B_11 B_12 B_2
+# in string sorting, ``A_11'' and ``A_12'' appears before ``A_2'';
+my $my_sort_func = sub {
+  my @a = split /_/, $_[0];
+  my @b = split /_/, $_[1];
+  my $res = ($a[0] cmp $b[0]) || (int($a[1]) &lt;=&gt; int($b[1]));
+};
+$t-&gt;sort(``PlateWell'', $my_sort_func, 0);
+print join(`` '', $t-&gt;col(``PlateWell''));
+# prints the correct order: A_1 A_2 A_11 A_12 B_1 B_2 B_11 B_12</p>
 </dd>
 <p></p>
 <dt><strong><a name="item_match_pattern">table table::match_pattern ($pattern, $countOnly)</a></strong><br />
