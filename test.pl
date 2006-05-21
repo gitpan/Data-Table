@@ -382,11 +382,9 @@ my $my_sort_func = sub {
   my $res = ($a[0] cmp $b[0]) || (int($a[1]) <=> int($b[1]));
 };
 $t->sort("PlateWell", $my_sort_func, 0);
-print join(" ", $t->col("PlateWell"));
-##################
-$t->sort("PlateWell", $my_sort_func, 1);
-print join(" ", $t->col("PlateWell"));
-
+#print join(" ", $t->col("PlateWell"));
+#$t->sort("PlateWell", $my_sort_func, 1);
+#print join(" ", $t->col("PlateWell"));
 
 if (join("", $t->col("PlateWell")) eq join("", @$Well)) {
   print "ok 54 sort using custom operator\n";

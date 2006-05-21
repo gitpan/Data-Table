@@ -1,5 +1,8 @@
 Revision history for Perl extension Table.
-1.46 Fri May 12 21:46:26 PDT 2006
+1.47 Sun May 21 15:03:14 PDT 2006
+  Upload the wrong code in 1.46, re-upload
+
+1.46 Sat May 13 05:44:09 PDT 2006
   fromCSV, fromTSV, csv, tsv can all take either a file hander or a file name
   Notice: to leave rooms for future development, file handler is not closed by Data::Table.
           It's caller's responsibility to close it afterwards, if no longer used.

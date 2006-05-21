@@ -79,7 +79,7 @@
                                         # Construct a table form an SQL 
                                         # database query.</pre>
 <pre>
-  $t-&gt;sort(&quot;age&quot;, 0, 0);                # Sort by col 'age',numerical,descending
+  $t-&gt;sort(&quot;age&quot;, 0, 0);                # Sort by col 'age',numerical,ascending
   print $t-&gt;html2;                      # Print out a 'landscape' HTML Table.</pre>
 <pre>
   $row = $t-&gt;delRow(2);                 # Delete the third row (index=2).
@@ -104,7 +104,7 @@
   $t-&gt;colMap('name', sub {return uc});  # Map a function to a column 
   $t-&gt;sort('age',0,0,'name',1,0);       # Sort table first by the numerical 
                                         # column 'age' and then by the 
-                                        # string column 'name' in descending
+                                        # string column 'name' in ascending
                                         # order
   $t2=$t-&gt;match_pattern('$_-&gt;[0] =~ /^L/ &amp;&amp; $_-&gt;[3]&lt;0.2'); 
                                         # Select the rows that matched the 
@@ -311,15 +311,12 @@ optional named argument OS specifies under which operating system the CSV file w
 <p>The following example reads a DOS format CSV file and writes a MAC format:</p>
 </dd>
 <dd>
-<p>$t = Data::Table:fromCSV('A_DOS_CSV_FILE.csv', 1, undef, {OS=&gt;1});</p>
-</dd>
-<dd>
-<p>$t-&gt;csv(1, {OS=&gt;2, file=&gt;'A_MAC_CSV_FILE.csv'});</p>
-</dd>
-<dd>
-<p>open(SRC, 'A_DOS_CSV_FILE.csv') or die ``Cannot open A_DOS_CSV_FILE.csv to read!'';
-$t = Data::Table::fromCSV(\*SRC, 1);
-close(SRC);</p>
+<pre>
+  $t = Data::Table:fromCSV('A_DOS_CSV_FILE.csv', 1, undef, {OS=&gt;1});
+  $t-&gt;csv(1, {OS=&gt;2, file=&gt;'A_MAC_CSV_FILE.csv'});
+  open(SRC, 'A_DOS_CSV_FILE.csv') or die &quot;Cannot open A_DOS_CSV_FILE.csv to read!&quot;;
+  $t = Data::Table::fromCSV(\*SRC, 1);
+  close(SRC);</pre>
 </dd>
 <p></p>
 <dt><strong><a name="item_fromcsvi">table table::fromCSVi ($name, $includeHeader = 1, $header = [``col1'', ... ])</a></strong><br />
@@ -665,20 +662,21 @@ the authors feel inplace sorting is more natural.
 <p>table::sort can take a user supplied operator, this is useful when neither numerical nor alphabetic order is correct.</p>
 </dd>
 <dd>
-<p>$Well=[``A_1'', ``A_2'', ``A_11'', ``A_12'', ``B_1'', ``B_2'', ``B_11'', ``B_12''];
-$t = new Data::Table([$Well], [``PlateWell''], 1);
-$t-&gt;sort(``PlateWell'', 1, 0);
-print join(`` '', $t-&gt;col(``PlateWell''));
-# prints: A_1 A_11 A_12 A_2 B_1 B_11 B_12 B_2
-# in string sorting, ``A_11'' and ``A_12'' appears before ``A_2'';
-my $my_sort_func = sub {
-  my @a = split /_/, $_[0];
-  my @b = split /_/, $_[1];
-  my $res = ($a[0] cmp $b[0]) || (int($a[1]) &lt;=&gt; int($b[1]));
-};
-$t-&gt;sort(``PlateWell'', $my_sort_func, 0);
-print join(`` '', $t-&gt;col(``PlateWell''));
-# prints the correct order: A_1 A_2 A_11 A_12 B_1 B_2 B_11 B_12</p>
+<pre>
+  $Well=[&quot;A_1&quot;, &quot;A_2&quot;, &quot;A_11&quot;, &quot;A_12&quot;, &quot;B_1&quot;, &quot;B_2&quot;, &quot;B_11&quot;, &quot;B_12&quot;];
+  $t = new Data::Table([$Well], [&quot;PlateWell&quot;], 1);
+  $t-&gt;sort(&quot;PlateWell&quot;, 1, 0);
+  print join(&quot; &quot;, $t-&gt;col(&quot;PlateWell&quot;));
+  # prints: A_1 A_11 A_12 A_2 B_1 B_11 B_12 B_2
+  # in string sorting, &quot;A_11&quot; and &quot;A_12&quot; appears before &quot;A_2&quot;;
+  my $my_sort_func = sub {
+    my @a = split /_/, $_[0];
+    my @b = split /_/, $_[1];
+    my $res = ($a[0] cmp $b[0]) || (int($a[1]) &lt;=&gt; int($b[1]));
+  };
+  $t-&gt;sort(&quot;PlateWell&quot;, $my_sort_func, 0);
+  print join(&quot; &quot;, $t-&gt;col(&quot;PlateWell&quot;));
+  # prints the correct order: A_1 A_2 A_11 A_12 B_1 B_2 B_11 B_12</pre>
 </dd>
 <p></p>
 <dt><strong><a name="item_match_pattern">table table::match_pattern ($pattern, $countOnly)</a></strong><br />
