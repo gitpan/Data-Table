@@ -2,7 +2,7 @@ package Data::Table;
 BEGIN { die "Your perl version is old, see README for instructions" if $] < 5.005; }
 
 use strict;
-use vars qw($VERSION @ISA @EXPORT @EXPORT_OK);
+use vars qw($VERSION %DEFAULTS @ISA @EXPORT @EXPORT_OK);
 use Carp;
 
 require Exporter;
@@ -15,7 +15,15 @@ require AutoLoader;
 @EXPORT = qw(
 	
 );
-$VERSION = '1.47';
+$VERSION = '1.49';
+%DEFAULTS = (
+  "CSV_DELIMITER"=>',', # controls how to read/write CSV file
+  "CSV_QUALIFIER"=>'"',
+  "OS"=>0
+  # operatoring system: 0 for UNIX (\n as linebreak), 1 for Windows
+  # (\r\n as linebreak), 2 for MAC  (\r as linebreak)
+  # this controls how to read and write CSV/TSV file
+);
 
 sub new {
   my ($pkg, $data, $header, $type, $enforceCheck) = @_;
@@ -80,10 +88,13 @@ sub nofRow {
 # still need to consider quotes and comma in string
 # need to get csv specification
 sub csvEscape {
-  my $s = shift;
+  my ($s, $arg_ref) = @_;
+  my ($delimiter, $qualifier) = ($Data::Table::DEFAULTS{CSV_DELIMITER}, $Data::Table::DEFAULTS{CSV_QUALIFIER});
+  $delimiter = $arg_ref->{'delimiter'} if (defined($arg_ref) && defined($arg_ref->{'delimiter'}));
+  $qualifier = $arg_ref->{'qualifier'} if (defined($arg_ref) && defined($arg_ref->{'qualifier'}));
   return '' unless defined($s);
-  $s =~ s/"/""/g;
-  if ($s =~ /[",]/) { return "\"$s\""; }
+  $s =~ s/$qualifier/$qualifier$qualifier/g;
+  if ($s =~ /[$qualifier$delimiter]/) { return "$qualifier$s$qualifier"; }
   return $s;
 }
 
@@ -102,18 +113,21 @@ sub csv {
   my ($self, $header, $arg_ref)=@_;
   my ($status, @t);
   my $s = '';
-  my ($OS, $fileName_or_handler) = (0, undef);
+  my ($OS, $fileName_or_handler) = ($Data::Table::DEFAULTS{OS}, undef);
   $OS = $arg_ref->{'OS'} if (defined($arg_ref) && defined($arg_ref->{'OS'}));
+  my ($delimiter, $qualifier) = ($Data::Table::DEFAULTS{CSV_DELIMITER}, $Data::Table::DEFAULTS{CSV_QUALIFIER});
+  $delimiter = $arg_ref->{'delimiter'} if (defined($arg_ref) && defined($arg_ref->{'delimiter'}));
+  $qualifier = $arg_ref->{'qualifier'} if (defined($arg_ref) && defined($arg_ref->{'qualifier'}));
   $fileName_or_handler = $arg_ref->{'file'} if (defined($arg_ref) && defined($arg_ref->{'file'}));
   my $endl = ($OS==2)?"\r":(($OS==1)?"\r\n":"\n");
   $header=1 unless defined($header);
-  $s=join(",", map {csvEscape($_)} @{$self->{header}}) . $endl if $header;
+  $s=join($delimiter, map {csvEscape($_, {delimiter=>$delimiter, qualifier=>$qualifier})} @{$self->{header}}) . $endl if $header;
 ######  $self->rotate if $self->{type};
   if ($self->{data}) {
     $self->rotate() if ($self->{type});
     my $data=$self->{data};
     for (my $i=0; $i<=$#{$data}; $i++) {
-      $s .= join(",", map {csvEscape($_)} @{$data->[$i]}) . $endl;
+      $s .= join($delimiter, map {csvEscape($_, {delimiter=>$delimiter, qualifier=>$qualifier})} @{$data->[$i]}) . $endl;
     }
   }
   if (defined($fileName_or_handler)) {
@@ -135,7 +149,7 @@ sub tsv {
   my ($self, $header, $arg_ref)=@_;
   my ($status, @t);
   my $s = '';
-  my ($OS, $fileName_or_handler) = (0, undef);
+  my ($OS, $fileName_or_handler) = ($Data::Table::DEFAULTS{OS}, undef);
   $OS = $arg_ref->{'OS'} if (defined($arg_ref) && defined($arg_ref->{'OS'}));
   $fileName_or_handler = $arg_ref->{'file'} if (defined($arg_ref) && defined($arg_ref->{'file'}));
   my $endl = ($OS==2)?"\r":(($OS==1)?"\r\n":"\n");
@@ -690,12 +704,13 @@ sub sort {
     for (my $i=0; $i<=$#cols; $i+=3) {
       my $mysub;
       if ($cols[$i+1] == 0) {
-        $mysub = ($cols[$i+2]? sub { $_[1] <=> $_[0] } : sub { $_[0] <=> $_[1] });
+        $mysub = ($cols[$i+2]? sub {defined($_[1])?(defined($_[0])? $_[1] <=> $_[0]:1):(defined($_[0])?-1:0)} : sub {defined($_[1])?(defined($_[0])? $_[0] <=> $_[1]:-1):(defined($_[0])?1:0)});
       } elsif ($cols[$i+1] == 1) {
-        $mysub = ($cols[$i+2]? sub { $_[1] cmp $_[0] } : sub { $_[0] cmp $_[1] });
+        $mysub = ($cols[$i+2]? sub {defined($_[1])?(defined($_[0])? $_[1] cmp $_[0]:1):(defined($_[0])?-1:0)} : sub {defined($_[1])?(defined($_[0])? $_[0] cmp $_[1]:-1):(defined($_[0])?1:0)});
       } elsif (ref $cols[$i+1] eq 'CODE') {
         my $predicate=$cols[$i+1];
-        $mysub = ($cols[$i+2]? sub { $predicate->($_[1], $_[0]) } : $predicate);
+        $mysub = ($cols[$i+2]? sub {defined($_[1])?(defined($_[0])? $predicate->($_[1],$_[0]) : 1): (defined($_[0])?-1:0)} : 
+                               sub {defined($_[1])?(defined($_[0])? $predicate->($_[0],$_[1]) : -1): (defined($_[0])?1:0)} );
       } else {
         confess "Sort method should be 0 (numerical), 1 (other type), or a subroutine reference!\n";
       }
@@ -879,10 +894,12 @@ sub fromCSVi {
 sub fromCSV {
   my ($name_or_handler, $includeHeader, $header, $arg_ref) = @_;
   $includeHeader = 1 unless defined($includeHeader);
-  my ($OS) = (0);
+  my ($OS, $delimiter, $qualifier) = ($Data::Table::DEFAULTS{OS}, $Data::Table::DEFAULTS{CSV_DELIMITER}, $Data::Table::DEFAULTS{CSV_QUALIFIER});
   $OS = $arg_ref->{'OS'} if (defined($arg_ref) && defined($arg_ref->{'OS'}));
   # OS: 0 for UNIX (\n as linebreak), 1 for Windows (\r\n as linebreak)
   ###   2 for MAC  (\r as linebreak)
+  $delimiter = $arg_ref->{'delimiter'} if (defined($arg_ref) && defined($arg_ref->{'delimiter'}));
+  $qualifier = $arg_ref->{'qualifier'} if (defined($arg_ref) && defined($arg_ref->{'qualifier'}));
   my @header;
   my $givenHeader = 0;
   if (defined($header) && ref($header) eq 'ARRAY') {
@@ -897,24 +914,26 @@ sub fromCSV {
     open($SRC, $name_or_handler) or confess "Cannot open $name_or_handler to read";
   }
   my @data = ();
-  my $oldDelimiter=$/;
-  my $newDelimiter=($OS==2)?"\r":(($OS==1)?"\r\n":"\n");
-  $/=$newDelimiter;
-  $_=<$SRC>;
-  $_=~ s/$newDelimiter$//;
-  unless ($_) {
+  my $oldRowDelimiter=$/;
+  my $newRowDelimiter=($OS==2)?"\r":(($OS==1)?"\r\n":"\n");
+  my $n_endl = length($newRowDelimiter);
+  $/=$newRowDelimiter;
+  my $s=<$SRC>;
+  if (substr($s, -$n_endl, $n_endl) eq $newRowDelimiter) { for (1..$n_endl) { chop $s }}
+  # $_=~ s/$newRowDelimiter$//;
+  unless ($s) {
     confess "Empty data file" unless $givenHeader;
-    $/=$oldDelimiter;
+    $/=$oldRowDelimiter;
     return new Data::Table(\@data, \@header, 0);
   }
   my $one;
-  if (/,$/) { # if the line ends by ',', the size of @one will be incorrect
+  if ($s =~ /$delimiter$/) { # if the line ends by ',', the size of @one will be incorrect
               # due to the tailing of split function in perl
-    $_ .= ' '; # e.g., split $s="a," will only return a list of size 1.
-    $one = parseCSV($_);
-    $one->[$#{@$one}]='';
+    $s .= ' '; # e.g., split $s="a," will only return a list of size 1.
+    $one = parseCSV($s, undef, {delimiter=>$delimiter, qualifier=>$qualifier});
+    $one->[$#{@$one}]=undef;
   } else {
-    $one = parseCSV($_);
+    $one = parseCSV($s, undef, {delimiter=>$delimiter, qualifier=>$qualifier});
   }
   #print join("|", @$one), scalar @$one, "\n";
   my $size = scalar @$one;
@@ -927,51 +946,54 @@ sub fromCSV {
   }
   push @data, $one unless ($includeHeader);
 
-  while(<$SRC>) {
-    $_=~ s/$newDelimiter$//;
-    my $one = parseCSV($_, $size);
-    #print join("|", @$one), scalar @$one, "\n";
+  while($s = <$SRC>) {
+    if (substr($s, -$n_endl, $n_endl) eq $newRowDelimiter) { for (1..$n_endl) { chop $s }}
+    # $_=~ s/$newDelimiter$//;
+    my $one = parseCSV($s, $size, {delimiter=>$delimiter, qualifier=>$qualifier});
     confess "Inconsistent column number at data entry: ".($#data+1) unless ($size==scalar @$one);
     push @data, $one;
   }
   close($SRC) unless $isFileHandler;
-  $/=$oldDelimiter;
+  $/=$oldRowDelimiter;
   return new Data::Table(\@data, \@header, 0);
 }
 
 # Idea: use \ as the escape char to encode a CSV string,
 # replace \ by \\ and comma inside a field by \c.
-# A comma inside a field must have even number of " in front of it,
+# A comma inside a field must have odd number of " in front of it,
 # therefore it can be distinguished from comma used as the deliminator.
 # After escape, and split by comma, we unescape each field string.
 #
 # This parser will never be crashed by any illegal CSV format,
 # it always return an array!
 sub parseCSV {
-  my ($s, $size)=@_;
+  my ($s, $size, $arg_ref)=@_;
   $size = 0 unless defined $size;
+  my ($delimiter, $qualifier) = ($Data::Table::DEFAULTS{CSV_DELIMITER}, $Data::Table::DEFAULTS{CSV_QUALIFIER});
+  $delimiter = $arg_ref->{'delimiter'} if (defined($arg_ref) && defined($arg_ref->{'delimiter'}));
+  $qualifier = $arg_ref->{'qualifier'} if (defined($arg_ref) && defined($arg_ref->{'qualifier'}));
   # $s =~ s/\n$//; # chop" # assume extra characters has been cleaned before
-  return [split /,/, $s , $size] if -1==index $s,'"';
+  return [split /$delimiter/, $s , $size] if -1==index $s, $qualifier;
   $s =~ s/\\/\\\\/g; # escape \ => \\
   my $n = length($s);
   my ($q, $i)=(0, 0);
   while ($i < $n) {
     my $ch=substr($s, $i, 1);
     $i++;
-    if ($ch eq ',' && ($q%2)) {
+    if ($ch eq $delimiter && ($q%2)) {
       substr($s, $i-1, 1)='\\c'; # escape , => \c if it's not a deliminator
       $i++;
       $n++;
-    } elsif ($ch eq '"') {
+    } elsif ($ch eq $qualifier) {
       $q++;
     }
   }
-  $s =~ s/(^")|("\s*$)//g; # get rid of boundary ", then restore "" => "
-  $s =~ s/",/,/g;
-  $s =~ s/,"/,/g;
-  $s =~ s/""/"/g;
-  my @parts=split(/,/, $s, $size);
-  @parts = map {$_ =~ s/(\\c|\\\\)/$1 eq '\c'?',':'\\'/eg; $_ } @parts;
+  $s =~ s/(^$qualifier)|($qualifier\s*$)//g; # get rid of boundary ", then restore "" => "
+  $s =~ s/$qualifier\s*$delimiter/$delimiter/g;
+  $s =~ s/$delimiter\s*$qualifier/$delimiter/g;
+  $s =~ s/$qualifier$qualifier/$qualifier/g;
+  my @parts=split(/$delimiter/, $s, $size);
+  @parts = map {$_ =~ s/(\\c|\\\\)/$1 eq '\c'?$delimiter:'\\'/eg; $_ } @parts;
 #  my @parts2=();
 #  foreach $s2 (@parts) {
 #    $s2 =~ s/\\c/,/g;   # restore \c => ,
@@ -988,7 +1010,7 @@ sub fromTSVi {
 
 sub fromTSV {
   my ($name_or_handler, $includeHeader, $header, $arg_ref) = @_;
-  my ($OS) = (0);
+  my ($OS) = ($Data::Table::DEFAULTS{OS});
   $OS = $arg_ref->{'OS'} if (defined($arg_ref) && defined($arg_ref->{'OS'}));
   # OS: 0 for UNIX (\n as linebreak), 1 for Windows (\r\n as linebreak)
   ###   2 for MAC  (\r as linebreak)
@@ -1013,25 +1035,27 @@ sub fromTSV {
     open($SRC, $name_or_handler) or confess "Cannot open $name_or_handler to read";
   }
   my @data = ();
-  my $oldDelimiter=$/;
-  my $newDelimiter=($OS==2)?"\r":(($OS==1)?"\r\n":"\n");
-  $/=$newDelimiter;
-  $_=<$SRC>;
-  $_=~ s/$newDelimiter$//;
-  unless ($_) {
+  my $oldRowDelimiter=$/;
+  my $newRowDelimiter=($OS==2)?"\r":(($OS==1)?"\r\n":"\n");
+  my $n_endl = length($newRowDelimiter);
+  $/=$newRowDelimiter;
+  my $s=<$SRC>;
+  if (substr($s, -$n_endl, $n_endl) eq $newRowDelimiter) { for (1..$n_endl) { chop $s }}
+  # $_=~ s/$newRowDelimiter$//;
+  unless ($s) {
     confess "Empty data file" unless $givenHeader;
-    $/=$oldDelimiter;
+    $/=$oldRowDelimiter;
     return new Data::Table(\@data, \@header, 0);
   }
   #chop;
   my $one;
-  if (/\t$/) { # if the line ends by ',', the size of @$one will be incorrect
+  if ($s =~ /\t$/) { # if the line ends by ',', the size of @$one will be incorrect
               # due to the tailing of split function in perl
-    $_ .= ' '; # e.g., split $s="a," will only return a list of size 1.
-    @$one = split(/\t/, $_);
+    $s .= ' '; # e.g., split $s="a," will only return a list of size 1.
+    @$one = split(/\t/, $s);
     $one->[$#{@$one}]='';
   } else {
-    @$one = split(/\t/, $_);
+    @$one = split(/\t/, $s);
   }
   # print join("|", @$one), scalar @$one, "\n";
   my $size = scalar @$one;
@@ -1044,10 +1068,11 @@ sub fromTSV {
   }
   push @data, $one unless ($includeHeader);
 
-  while(<$SRC>) {
+  while($s = <$SRC>) {
     #chop;
-    $_=~ s/$newDelimiter$//;
-    my @one = split(/\t/, $_, $size);
+    # $_=~ s/$newRowDelimiter$//;
+    if (substr($s, -$n_endl, $n_endl) eq $newRowDelimiter) { for (1..$n_endl) { chop $s }}
+    my @one = split(/\t/, $s, $size);
     for (my $i=0; $i < $size; $i++) {
       next unless defined($one[$i]);
       if ($one[$i] eq "\\N") {
@@ -1060,7 +1085,7 @@ sub fromTSV {
     push @data, \@one;
   }
   close($SRC) unless $isFileHandler;
-  $/=$oldDelimiter;
+  $/=$oldRowDelimiter;
   return new Data::Table(\@data, \@header, 0);
 }
 
@@ -1587,6 +1612,11 @@ contains all column names.
 
 see table::match_string and table::match_pattern
 
+=item %Data::Table::DEFAULTS
+
+Store default settings, currently it contains CSV_DELIMITER (set to ','), CSV_QUALIFER (set to '"'), and OS (set to 0).
+see table::fromCSV, table::csv, table::fromTSV, table::tsv for details.
+
 # =item $Data::Table::ID
 # 
 #see Data::Table::fromSQL
@@ -1640,14 +1670,15 @@ Undefined $rowIdcsRef or $colIDsRef is interpreted as all rows or all columns.
 make a clone of the original.
 It return a table object, equivalent to table::subTable(undef,undef).
 
-=item table Data::Table::fromCSV ($name_or_handler, $includeHeader = 1, $header = ["col1", ... ], {OS=>0})
+=item table Data::Table::fromCSV ($name_or_handler, $includeHeader = 1, $header = ["col1", ... ], {OS=>$Data::Table::DEFAULTS{'OS'}})
 
 create a table from a CSV file.
 return a table object.
 $name_or_handler: the CSV file name or an already opened file handler. If a handler is used, it's not closed upon return.
 $includeHeader: 0 or 1 to ignore/interpret the first line in the file as column names,
 If it is set to 0, the array in $header is used. If $header is not supplied, the default column names are "col1", "col2", ...
-optional named argument OS specifies under which operating system the CSV file was generated. 0 for UNIX (default), 1 for PC and 2 for MAC. Basically linebreak is defined as "\n", "\r\n" and "\r" for three systems, respectively.
+optional named argument OS specifies under which operating system the CSV file was generated. 0 for UNIX, 1 for PC and 2 for MAC. If not specified, $Data::Table::DEFAULTS{'OS'} is used, which defaults to UNIX. Basically linebreak is defined as "\n", "\r\n" and "\r" for three systems, respectively.
+optional name argument delimiter and qualifier let user replace comma and double-quote by other meaningful single characters.
 
 The following example reads a DOS format CSV file and writes a MAC format:
 
@@ -1657,19 +1688,31 @@ The following example reads a DOS format CSV file and writes a MAC format:
   $t = Data::Table::fromCSV(\*SRC, 1);
   close(SRC);
 
+The following example reads a non-standard CSV file with : as the delimiter, ' as the qaulifier
+  my $s="col_A:col_B:col_C\n1:2, 3 or 5:3.5\none:'one:two':'double\", single'''";
+  open my $fh, "<", \$s or die "Cannot open in-memory file\n";
+  my $t_fh=Data::Table::fromCSV($fh, 1, undef, {delimiter=>':', qualifier=>"'"});
+  close($fh);
+  print $t_fh->csv;
+  # convert to the standard CSV (comma as the delimiter, double quote as the qualifier)
+  # col_A,col_B,col_C
+  # 1,"2, 3 or 5",3.5
+  # one,one:two,"double"", single'"
+  print $t->csv(1, {delimiter=>':', qualifier=>"'"}); # prints the csv file use the original definition
+
 =item table table::fromCSVi ($name, $includeHeader = 1, $header = ["col1", ... ])
 
 Same as Data::Table::fromCSV. However, this is an instant method (that's what 'i' stands for), which can be inherited.
 
-=item table Data::Table::fromTSV ($name, $includeHeader = 1, $header = ["col1", ... ], {OS=>0})
+=item table Data::Table::fromTSV ($name, $includeHeader = 1, $header = ["col1", ... ], {OS=>$Data::Table::DEFAULTS{'OS'}})
 
 create a table from a TSV file.
 return a table object.
 $name: the TSV file name or an already opened file handler. If a handler is used, it's not closed upon return..
 $includeHeader: 0 or 1 to ignore/interpret the first line in the file as column names,
 If it is set to 0, the array in $header is used. If $header is not supplied, the default column names are "col1", "col2", ...
-optional named argument OS specifies under which operating system the TSV file was generated. 0 for UNIX (default), 1 for P
-C and 2 for MAC. Basically linebreak is defined as "\n", "\r\n" and "\r" for three systems, respectively.
+optional named argument OS specifies under which operating system the TSV file was generated. 0 for UNIX, 1 for P
+C and 2 for MAC. If not specified, $Data::Table::DEFAULTS{'OS'} is used, which defaults to UNIX. Basically linebreak is defined as "\n", "\r\n" and "\r" for three systems, respectively.
 
 Note: read "TSV FORMAT" section for details.
 
@@ -1739,20 +1782,20 @@ be aware that the type of a table should be considered as volatile during method
 
 =over 4
 
-=item string table::csv ($header, {OS=>0, file=>undef})
+=item string table::csv ($header, {OS=>$Data::Table::DEFAULTS{'OS'}, file=>undef})
 
 return a string corresponding to the CSV representation of the table.
 $header controls whether to print the header line, 1 for yes, 0 for no.
-optional named argument OS specifies for which operating system the CSV file is generated. 0 for UNIX (default), 1 for P
-C and 2 for MAC. Basically linebreak is defined as "\n", "\r\n" and "\r" for three systems, respectively.
+optional named argument OS specifies for which operating system the CSV file is generated. 0 for UNIX, 1 for P
+C and 2 for MAC. If not specified, $Data::Table::DEFAULTS{'OS'} is used. Basically linebreak is defined as "\n", "\r\n" and "\r" for three systems, respectively.
 if 'file' is given, the csv content will be written into it, besides returning the string.
 
 =item string table::tsv
 
 return a string corresponding to the TSV representation of the table.
 $header controls whether to print the header line, 1 for yes, 0 for no.
-optional named argument OS specifies for which operating system the TSV file is generated. 0 for UNIX (default), 1 for P
-C and 2 for MAC. Basically linebreak is defined as "\n", "\r\n" and "\r" for three systems, respectively.
+optional named argument OS specifies for which operating system the TSV file is generated. 0 for UNIX, 1 for P
+C and 2 for MAC. If not specified, $Data::Table::DEFAULTS{'OS'} is used. Basically linebreak is defined as "\n", "\r\n" and "\r" for three systems, respectively.
 if 'file' is given, the tsv content will be written into it, besides returning the string.
 
 Note: read "TSV FORMAT" section for details.
@@ -2050,9 +2093,16 @@ return 1 upon success, undef otherwise.
 
 Encode an array of scalars into a CSV-formatted string.
 
+optional named arguments: delimiter and qualifier, in case user wants to use characters other than the defaults. 
+The default delimiter and qualifier is taken from $Data::Table::DEFAULTS{'CSV_DELIMITER'} (defaults to ',') and $Data::Table::DEFAULTS{'CSV_QUALIFIER'} (defaults to '"'), respectively.
+
 =item refto_array parseCSV($string)
 
 Break a CSV encoded string to an array of scalars (check it out, we did it the cool way).
+
+optional argument size: specify the expected number of fields after csv-split.
+optional named arguments: delimiter and qualifier, in case user wants to use characters other than the defaults.
+respectively. The default delimiter and qualifier is taken from $Data::Table::DEFAULTS{'CSV_DELIMITER'} (defaults to ',') and $Data::Table::DEFAULTS{'CSV_QUALIFIER'} (defaults to '"'), respectively.
 
 =item string tsvEscape($rowRef)
 

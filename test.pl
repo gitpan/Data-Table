@@ -6,9 +6,10 @@
 # Change 1..1 below to 1..last_test_to_print .
 # (It may become useful if the test is moved to ./t subdirectory.)
 
-BEGIN { $| = 1; print "1..49\n"; }
+BEGIN { $| = 1; print "1..57\n"; }
 END {print "not ok 1\n" unless $loaded;}
 use Data::Table;
+use Data::Dumper;
 $loaded = 1;
 print "ok loaded\n";
 
@@ -392,6 +393,21 @@ if (join("", $t->col("PlateWell")) eq join("", @$Well)) {
   print "not ok 54 fromTSV custom operator\n";
 }
 
+$s="col_A:col_B:col_C\n1:2, 3 or 5:3.5\none:'one:two':'double\", single'''";
+open $fh, "<", \$s or die "Cannot open in-memory file\n";
+$t_fh=Data::Table::fromCSV($fh, 1, undef, {delimiter=>':', qualifier=>"'"});
+close($fh);
+  # col_A,col_B,col_C
+  # 1,"2, 3 or 5",3.5
+  # one,one:two,"double"", single'"
+if ($t_fh->elm(0, 'col_B') eq "2, 3 or 5"
+    && $t_fh->elm(1, 'col_B') eq "one:two"
+    && $t_fh->elm(1, 'col_C') eq 'double", single\'') {
+  print "ok 55 using custom delimiter and qualifier for fromCSV\n";
+} else {
+  print "not ok 55 using custom delimiter and qualifier for fromCSV\n";
+} 
+
 # use DBI;
 # $dbh= DBI->connect("DBI:mysql:test", "test", "") or die $dbh->errstr;
 # $t = Data::Table::fromSQL($dbh, "show tables");
@@ -408,15 +424,15 @@ package main;
 
 $foo=FOO->new([[11,12],[21,22],[31,32]],['header1','header2'],0);
 if ($foo->csv) {
-  print "ok 55 Inheritance\n";
+  print "ok 56 Inheritance\n";
 } else {
-  print "not ok 55 Inheritance\n";
+  print "not ok 56 Inheritance\n";
 }
 $foo = FOO->fromCSVi("aaa.csv");
 if ($foo->csv) {
-  print "ok 56 inheritated instant method fromCSVi\n";
+  print "ok 57 inheritated instant method fromCSVi\n";
 } else {
-  print "not ok 56 inheritated instant method fromCSVi\n";
+  print "not ok 57 inheritated instant method fromCSVi\n";
 }
 
 sub equal {

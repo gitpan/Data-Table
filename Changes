@@ -1,4 +1,17 @@
 Revision history for Perl extension Table.
+1.49 Wed Aug 30 09:29:51 PDT 2006
+  Add %Data::Table::DEFAULTS to store the default settings for OS, CSV_DELIMITER and CSV_QUALIFIER
+  Thanks to suggestions from Roman Filippov
+
+  Patch sort method to deal with undef table element. undef value is considered to be
+  larger than any other value, two undef values are considered equal during sorting.
+
+1.48 Thu Jun  8 13:25:54 PDT 2006
+  Update fromCSV, parseCSV to enable user-specified delimiter and qualifier,
+  see document and examples under fromCSV.
+  csvEscape is modified accordingly.
+  Thanks to help from Roman Filippov
+
 1.47 Sun May 21 15:03:14 PDT 2006
   Upload the wrong code in 1.46, re-upload
 

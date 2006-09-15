@@ -241,6 +241,13 @@ contains all column names.
 <dd>
 see table::match_string and table::match_pattern
 </dd>
+<p></p>
+<dt><strong><a name="item__data__table__defaults">%Data::Table::DEFAULTS</a></strong><br />
+</dt>
+<dd>
+Store default settings, currently it contains CSV_DELIMITER (set to ','), CSV_QUALIFER (set to '``'), and OS (set to 0).
+see table::fromCSV, table::csv, table::fromTSV, table::tsv for details.
+</dd>
 <dd>
 <p># =item $Data::Table::ID
 # 
@@ -297,7 +304,7 @@ make a clone of the original.
 It return a table object, equivalent to table::subTable(undef,undef).
 </dd>
 <p></p>
-<dt><strong><a name="item_fromcsv">table Data::Table::fromCSV ($name_or_handler, $includeHeader = 1, $header = [``col1'', ... ], {OS=&gt;0})</a></strong><br />
+<dt><strong><a name="item_fromcsv">table Data::Table::fromCSV ($name_or_handler, $includeHeader = 1, $header = [``col1'', ... ], {OS=&gt;$Data::Table::DEFAULTS{'OS'}})</a></strong><br />
 </dt>
 <dd>
 create a table from a CSV file.
@@ -305,7 +312,8 @@ return a table object.
 $name_or_handler: the CSV file name or an already opened file handler. If a handler is used, it's not closed upon return.
 $includeHeader: 0 or 1 to ignore/interpret the first line in the file as column names,
 If it is set to 0, the array in $header is used. If $header is not supplied, the default column names are ``col1'', ``col2'', ...
-optional named argument OS specifies under which operating system the CSV file was generated. 0 for UNIX (default), 1 for PC and 2 for MAC. Basically linebreak is defined as ``\n'', ``\r\n'' and ``\r'' for three systems, respectively.
+optional named argument OS specifies under which operating system the CSV file was generated. 0 for UNIX, 1 for PC and 2 for MAC. If not specified, $Data::Table::DEFAULTS{'OS'} is used, which defaults to UNIX. Basically linebreak is defined as ``\n'', ``\r\n'' and ``\r'' for three systems, respectively.
+optional name argument delimiter and qualifier let user replace comma and double-quote by other meaningful single characters.
 </dd>
 <dd>
 <p>The following example reads a DOS format CSV file and writes a MAC format:</p>
@@ -318,6 +326,19 @@ optional named argument OS specifies under which operating system the CSV file w
   $t = Data::Table::fromCSV(\*SRC, 1);
   close(SRC);</pre>
 </dd>
+<dd>
+<p>The following example reads a non-standard CSV file with : as the delimiter, ' as the qaulifier
+  my $s=``col_A:col_B:col_C\n1:2, 3 or 5:3.5\none:'one:two':'double\'', single'''``;
+  open my $fh, ''&lt;``, \$s or die ''Cannot open in-memory file\n``;
+  my $t_fh=Data::Table::fromCSV($fh, 1, undef, {delimiter=&gt;':', qualifier=&gt;'''``});
+  close($fh);
+  print $t_fh-&gt;csv;
+  # convert to the standard CSV (comma as the delimiter, double quote as the qualifier)
+  # col_A,col_B,col_C
+  # 1,''2, 3 or 5``,3.5
+  # one,one:two,''double``'', single'``
+  print $t-&gt;csv(1, {delimiter=&gt;':', qualifier=&gt;'''``}); # prints the csv file use the original definition</p>
+</dd>
 <p></p>
 <dt><strong><a name="item_fromcsvi">table table::fromCSVi ($name, $includeHeader = 1, $header = [``col1'', ... ])</a></strong><br />
 </dt>
@@ -325,7 +346,7 @@ optional named argument OS specifies under which operating system the CSV file w
 Same as Data::Table::fromCSV. However, this is an instant method (that's what 'i' stands for), which can be inherited.
 </dd>
 <p></p>
-<dt><strong><a name="item_fromtsv">table Data::Table::fromTSV ($name, $includeHeader = 1, $header = [``col1'', ... ], {OS=&gt;0})</a></strong><br />
+<dt><strong><a name="item_fromtsv">table Data::Table::fromTSV ($name, $includeHeader = 1, $header = [``col1'', ... ], {OS=&gt;$Data::Table::DEFAULTS{'OS'}})</a></strong><br />
 </dt>
 <dd>
 create a table from a TSV file.
@@ -333,8 +354,8 @@ return a table object.
 $name: the TSV file name or an already opened file handler. If a handler is used, it's not closed upon return..
 $includeHeader: 0 or 1 to ignore/interpret the first line in the file as column names,
 If it is set to 0, the array in $header is used. If $header is not supplied, the default column names are ``col1'', ``col2'', ...
-optional named argument OS specifies under which operating system the TSV file was generated. 0 for UNIX (default), 1 for P
-C and 2 for MAC. Basically linebreak is defined as ``\n'', ``\r\n'' and ``\r'' for three systems, respectively.
+optional named argument OS specifies under which operating system the TSV file was generated. 0 for UNIX, 1 for P
+C and 2 for MAC. If not specified, $Data::Table::DEFAULTS{'OS'} is used, which defaults to UNIX. Basically linebreak is defined as ``\n'', ``\r\n'' and ``\r'' for three systems, respectively.
 </dd>
 <dd>
 <p>Note: read ``TSV FORMAT'' section for details.</p>
@@ -422,13 +443,13 @@ be aware that the type of a table should be considered as volatile during method
 </p>
 <h2><a name="table_formatting">Table Formatting</a></h2>
 <dl>
-<dt><strong><a name="item_csv">string table::csv ($header, {OS=&gt;0, file=&gt;undef})</a></strong><br />
+<dt><strong><a name="item_csv">string table::csv ($header, {OS=&gt;$Data::Table::DEFAULTS{'OS'}, file=&gt;undef})</a></strong><br />
 </dt>
 <dd>
 return a string corresponding to the CSV representation of the table.
 $header controls whether to print the header line, 1 for yes, 0 for no.
-optional named argument OS specifies for which operating system the CSV file is generated. 0 for UNIX (default), 1 for P
-C and 2 for MAC. Basically linebreak is defined as ``\n'', ``\r\n'' and ``\r'' for three systems, respectively.
+optional named argument OS specifies for which operating system the CSV file is generated. 0 for UNIX, 1 for P
+C and 2 for MAC. If not specified, $Data::Table::DEFAULTS{'OS'} is used. Basically linebreak is defined as ``\n'', ``\r\n'' and ``\r'' for three systems, respectively.
 if 'file' is given, the csv content will be written into it, besides returning the string.
 </dd>
 <p></p>
@@ -437,8 +458,8 @@ if 'file' is given, the csv content will be written into it, besides returning t
 <dd>
 return a string corresponding to the TSV representation of the table.
 $header controls whether to print the header line, 1 for yes, 0 for no.
-optional named argument OS specifies for which operating system the TSV file is generated. 0 for UNIX (default), 1 for P
-C and 2 for MAC. Basically linebreak is defined as ``\n'', ``\r\n'' and ``\r'' for three systems, respectively.
+optional named argument OS specifies for which operating system the TSV file is generated. 0 for UNIX, 1 for P
+C and 2 for MAC. If not specified, $Data::Table::DEFAULTS{'OS'} is used. Basically linebreak is defined as ``\n'', ``\r\n'' and ``\r'' for three systems, respectively.
 if 'file' is given, the tsv content will be written into it, besides returning the string.
 </dd>
 <dd>
@@ -823,11 +844,20 @@ return 1 upon success, undef otherwise.
 <dd>
 Encode an array of scalars into a CSV-formatted string.
 </dd>
+<dd>
+<p>optional named arguments: delimiter and qualifier, in case user wants to use characters other than the defaults. 
+The default delimiter and qualifier is taken from $Data::Table::DEFAULTS{'CSV_DELIMITER'} (defaults to ',') and $Data::Table::DEFAULTS{'CSV_QUALIFIER'} (defaults to '``'), respectively.</p>
+</dd>
 <p></p>
 <dt><strong><a name="item_parsecsv">refto_array <code>parseCSV($string)</code></a></strong><br />
 </dt>
 <dd>
 Break a CSV encoded string to an array of scalars (check it out, we did it the cool way).
+</dd>
+<dd>
+<p>optional argument size: specify the expected number of fields after csv-split.
+optional named arguments: delimiter and qualifier, in case user wants to use characters other than the defaults.
+respectively. The default delimiter and qualifier is taken from $Data::Table::DEFAULTS{'CSV_DELIMITER'} (defaults to ',') and $Data::Table::DEFAULTS{'CSV_QUALIFIER'} (defaults to '``'), respectively.</p>
 </dd>
 <p></p>
 <dt><strong><a name="item_tsvescape">string <code>tsvEscape($rowRef)</code></a></strong><br />
