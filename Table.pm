@@ -15,7 +15,7 @@ require AutoLoader;
 @EXPORT = qw(
 	
 );
-$VERSION = '1.49';
+$VERSION = '1.50';
 %DEFAULTS = (
   "CSV_DELIMITER"=>',', # controls how to read/write CSV file
   "CSV_QUALIFIER"=>'"',
@@ -93,8 +93,10 @@ sub csvEscape {
   $delimiter = $arg_ref->{'delimiter'} if (defined($arg_ref) && defined($arg_ref->{'delimiter'}));
   $qualifier = $arg_ref->{'qualifier'} if (defined($arg_ref) && defined($arg_ref->{'qualifier'}));
   return '' unless defined($s);
-  $s =~ s/$qualifier/$qualifier$qualifier/g;
-  if ($s =~ /[$qualifier$delimiter]/) { return "$qualifier$s$qualifier"; }
+  my $qualifier2 = $qualifier;
+  $qualifier2 = substr($qualifier, 1, 1) if length($qualifier)>1; # in case qualifier is a special symbol for regular expression
+  $s =~ s/$qualifier/$qualifier2$qualifier2/g;
+  if ($s =~ /[$qualifier$delimiter]/) { return "$qualifier2$s$qualifier2"; }
   return $s;
 }
 
@@ -116,18 +118,21 @@ sub csv {
   my ($OS, $fileName_or_handler) = ($Data::Table::DEFAULTS{OS}, undef);
   $OS = $arg_ref->{'OS'} if (defined($arg_ref) && defined($arg_ref->{'OS'}));
   my ($delimiter, $qualifier) = ($Data::Table::DEFAULTS{CSV_DELIMITER}, $Data::Table::DEFAULTS{CSV_QUALIFIER});
-  $delimiter = $arg_ref->{'delimiter'} if (defined($arg_ref) && defined($arg_ref->{'delimiter'}));
-  $qualifier = $arg_ref->{'qualifier'} if (defined($arg_ref) && defined($arg_ref->{'qualifier'}));
-  $fileName_or_handler = $arg_ref->{'file'} if (defined($arg_ref) && defined($arg_ref->{'file'}));
+  if (defined($arg_ref)) {
+    $delimiter = $arg_ref->{'delimiter'} if defined($arg_ref->{'delimiter'});
+    $qualifier = $arg_ref->{'qualifier'} if defined($arg_ref->{'qualifier'});
+    $fileName_or_handler = $arg_ref->{'file'} if defined($arg_ref->{'file'});
+  }
+  my $delimiter2 = $delimiter; $delimiter2 = substr($delimiter, 1, 1) if length($delimiter)>1;
   my $endl = ($OS==2)?"\r":(($OS==1)?"\r\n":"\n");
   $header=1 unless defined($header);
-  $s=join($delimiter, map {csvEscape($_, {delimiter=>$delimiter, qualifier=>$qualifier})} @{$self->{header}}) . $endl if $header;
+  $s=join($delimiter2, map {csvEscape($_, {delimiter=>$delimiter, qualifier=>$qualifier})} @{$self->{header}}) . $endl if $header;
 ######  $self->rotate if $self->{type};
   if ($self->{data}) {
     $self->rotate() if ($self->{type});
     my $data=$self->{data};
     for (my $i=0; $i<=$#{$data}; $i++) {
-      $s .= join($delimiter, map {csvEscape($_, {delimiter=>$delimiter, qualifier=>$qualifier})} @{$data->[$i]}) . $endl;
+      $s .= join($delimiter2, map {csvEscape($_, {delimiter=>$delimiter, qualifier=>$qualifier})} @{$data->[$i]}) . $endl;
     }
   }
   if (defined($fileName_or_handler)) {
@@ -894,12 +899,16 @@ sub fromCSVi {
 sub fromCSV {
   my ($name_or_handler, $includeHeader, $header, $arg_ref) = @_;
   $includeHeader = 1 unless defined($includeHeader);
-  my ($OS, $delimiter, $qualifier) = ($Data::Table::DEFAULTS{OS}, $Data::Table::DEFAULTS{CSV_DELIMITER}, $Data::Table::DEFAULTS{CSV_QUALIFIER});
+  my ($OS, $delimiter, $qualifier, $skip_lines, $skip_pattern) = ($Data::Table::DEFAULTS{OS}, $Data::Table::DEFAULTS{CSV_DELIMITER}, $Data::Table::DEFAULTS{CSV_QUALIFIER}, 0, undef);
   $OS = $arg_ref->{'OS'} if (defined($arg_ref) && defined($arg_ref->{'OS'}));
   # OS: 0 for UNIX (\n as linebreak), 1 for Windows (\r\n as linebreak)
   ###   2 for MAC  (\r as linebreak)
-  $delimiter = $arg_ref->{'delimiter'} if (defined($arg_ref) && defined($arg_ref->{'delimiter'}));
-  $qualifier = $arg_ref->{'qualifier'} if (defined($arg_ref) && defined($arg_ref->{'qualifier'}));
+  if (defined($arg_ref)) {
+    $delimiter = $arg_ref->{'delimiter'} if defined($arg_ref->{'delimiter'});
+    $qualifier = $arg_ref->{'qualifier'} if defined($arg_ref->{'qualifier'});
+    $skip_lines = $arg_ref->{'skip_lines'} if (defined($arg_ref->{'skip_lines'}) && $arg_ref->{'skip_lines'}>0);
+    $skip_pattern = $arg_ref->{'skip_pattern'} if defined($arg_ref->{'skip_pattern'});
+  }
   my @header;
   my $givenHeader = 0;
   if (defined($header) && ref($header) eq 'ARRAY') {
@@ -918,7 +927,12 @@ sub fromCSV {
   my $newRowDelimiter=($OS==2)?"\r":(($OS==1)?"\r\n":"\n");
   my $n_endl = length($newRowDelimiter);
   $/=$newRowDelimiter;
-  my $s=<$SRC>;
+  my $s;
+  for (my $i=0; $i<$skip_lines; $i++) {
+    $s=<$SRC>;
+  }
+  $s=<$SRC>;
+  if (defined($skip_pattern)) { while (defined($s) && $s =~ /$skip_pattern/) { $s = <$SRC> }; }
   if (substr($s, -$n_endl, $n_endl) eq $newRowDelimiter) { for (1..$n_endl) { chop $s }}
   # $_=~ s/$newRowDelimiter$//;
   unless ($s) {
@@ -947,6 +961,7 @@ sub fromCSV {
   push @data, $one unless ($includeHeader);
 
   while($s = <$SRC>) {
+    next if (defined($skip_pattern) && $s =~ /$skip_pattern/);
     if (substr($s, -$n_endl, $n_endl) eq $newRowDelimiter) { for (1..$n_endl) { chop $s }}
     # $_=~ s/$newDelimiter$//;
     my $one = parseCSV($s, $size, {delimiter=>$delimiter, qualifier=>$qualifier});
@@ -972,6 +987,8 @@ sub parseCSV {
   my ($delimiter, $qualifier) = ($Data::Table::DEFAULTS{CSV_DELIMITER}, $Data::Table::DEFAULTS{CSV_QUALIFIER});
   $delimiter = $arg_ref->{'delimiter'} if (defined($arg_ref) && defined($arg_ref->{'delimiter'}));
   $qualifier = $arg_ref->{'qualifier'} if (defined($arg_ref) && defined($arg_ref->{'qualifier'}));
+  my $delimiter2 = $delimiter; $delimiter2 = substr($delimiter, 1, 1) if length($delimiter)>1;
+  my $qualifier2 = $qualifier; $qualifier2 = substr($qualifier, 1, 1) if length($qualifier)>1;
   # $s =~ s/\n$//; # chop" # assume extra characters has been cleaned before
   return [split /$delimiter/, $s , $size] if -1==index $s, $qualifier;
   $s =~ s/\\/\\\\/g; # escape \ => \\
@@ -980,20 +997,20 @@ sub parseCSV {
   while ($i < $n) {
     my $ch=substr($s, $i, 1);
     $i++;
-    if ($ch eq $delimiter && ($q%2)) {
+    if ($ch eq $delimiter2 && ($q%2)) {
       substr($s, $i-1, 1)='\\c'; # escape , => \c if it's not a deliminator
       $i++;
       $n++;
-    } elsif ($ch eq $qualifier) {
+    } elsif ($ch eq $qualifier2) {
       $q++;
     }
   }
   $s =~ s/(^$qualifier)|($qualifier\s*$)//g; # get rid of boundary ", then restore "" => "
-  $s =~ s/$qualifier\s*$delimiter/$delimiter/g;
-  $s =~ s/$delimiter\s*$qualifier/$delimiter/g;
-  $s =~ s/$qualifier$qualifier/$qualifier/g;
+  $s =~ s/$qualifier\s*$delimiter/$delimiter2/g;
+  $s =~ s/$delimiter\s*$qualifier/$delimiter2/g;
+  $s =~ s/$qualifier$qualifier/$qualifier2/g;
   my @parts=split(/$delimiter/, $s, $size);
-  @parts = map {$_ =~ s/(\\c|\\\\)/$1 eq '\c'?$delimiter:'\\'/eg; $_ } @parts;
+  @parts = map {$_ =~ s/(\\c|\\\\)/$1 eq '\c'?$delimiter2:'\\'/eg; $_ } @parts;
 #  my @parts2=();
 #  foreach $s2 (@parts) {
 #    $s2 =~ s/\\c/,/g;   # restore \c => ,
@@ -1010,10 +1027,13 @@ sub fromTSVi {
 
 sub fromTSV {
   my ($name_or_handler, $includeHeader, $header, $arg_ref) = @_;
-  my ($OS) = ($Data::Table::DEFAULTS{OS});
+  my ($OS, $skip_lines, $skip_pattern) = ($Data::Table::DEFAULTS{OS}, 0, undef);
   $OS = $arg_ref->{'OS'} if (defined($arg_ref) && defined($arg_ref->{'OS'}));
   # OS: 0 for UNIX (\n as linebreak), 1 for Windows (\r\n as linebreak)
   ###   2 for MAC  (\r as linebreak)
+  $skip_lines = $arg_ref->{'skip_lines'} if (defined($arg_ref) && defined($arg_ref->{'skip_lines'}) && $arg_ref->{'skip_lines'}>0);
+  $skip_pattern = $arg_ref->{'skip_pattern'} if defined($arg_ref->{'skip_pattern'});
+ 
   my %ESC = ( '0'=>"\0", 'n'=>"\n", 't'=>"\t", 'r'=>"\r", 'b'=>"\b",
               "'"=>"'", '"'=>"\"", '\\'=>"\\" );
   ## what about \f? MySQL treats \f as f.
@@ -1039,7 +1059,12 @@ sub fromTSV {
   my $newRowDelimiter=($OS==2)?"\r":(($OS==1)?"\r\n":"\n");
   my $n_endl = length($newRowDelimiter);
   $/=$newRowDelimiter;
-  my $s=<$SRC>;
+  my $s;
+  for (my $i=0; $i<$skip_lines; $i++) {
+    $s=<$SRC>;
+  }
+  $s=<$SRC>;
+  if (defined($skip_pattern)) { while (defined($s) && $s =~ /$skip_pattern/) { $s = <$SRC> }; }
   if (substr($s, -$n_endl, $n_endl) eq $newRowDelimiter) { for (1..$n_endl) { chop $s }}
   # $_=~ s/$newRowDelimiter$//;
   unless ($s) {
@@ -1071,6 +1096,7 @@ sub fromTSV {
   while($s = <$SRC>) {
     #chop;
     # $_=~ s/$newRowDelimiter$//;
+    next if (defined($skip_pattern) && $s =~ /$skip_pattern/);
     if (substr($s, -$n_endl, $n_endl) eq $newRowDelimiter) { for (1..$n_endl) { chop $s }}
     my @one = split(/\t/, $s, $size);
     for (my $i=0; $i < $size; $i++) {
@@ -1115,6 +1141,13 @@ sub fromSQL {
 sub join {
   my ($self, $tbl, $type, $cols1, $cols2) = @_;
   my $n1 = scalar @$cols1;
+  # default cols2 to cols1 if not specified
+  if (!defined($cols2) && $n1>0) {
+    $cols2 = [];
+    foreach my $c (@$cols1) {
+      push @$cols2, $c;
+    }
+  }
   my $n2 = scalar @$cols2;
   confess "The number of join columns must be the same: $n1 != $n2" unless $n1==$n2;
   confess "At least one join column must be specified" unless $n1;
@@ -1528,7 +1561,7 @@ record matching via keywords or patterns, table merging, and web publishing.
 Data::Table class also provides a straightforward interface to other
 popular Perl modules such as DBI and GD::Graph.
 
-The current version of Table.pm is available at http://www.geocities.com/easydatabase
+The current version of Table.pm is available at http://easydatabase.googlepages.com
 
 We use Data::Table instead of Table, because Table.pm has already been used inside PerlQt module in CPAN.
 
@@ -1617,10 +1650,6 @@ see table::match_string and table::match_pattern
 Store default settings, currently it contains CSV_DELIMITER (set to ','), CSV_QUALIFER (set to '"'), and OS (set to 0).
 see table::fromCSV, table::csv, table::fromTSV, table::tsv for details.
 
-# =item $Data::Table::ID
-# 
-#see Data::Table::fromSQL
-
 =back
 
 =head2 Class Methods
@@ -1670,7 +1699,7 @@ Undefined $rowIdcsRef or $colIDsRef is interpreted as all rows or all columns.
 make a clone of the original.
 It return a table object, equivalent to table::subTable(undef,undef).
 
-=item table Data::Table::fromCSV ($name_or_handler, $includeHeader = 1, $header = ["col1", ... ], {OS=>$Data::Table::DEFAULTS{'OS'}})
+=item table Data::Table::fromCSV ($name_or_handler, $includeHeader = 1, $header = ["col1", ... ], {OS=>$Data::Table::DEFAULTS{'OS'}, delimiter=>$Data::Table::DEFAULTS{'CSV_DELIMITER'}, qualifier=>$Data::Table::DEFAULTS{'CSV_QUALIFIER'}, skip_lines=>0, skip_pattern=>undef})
 
 create a table from a CSV file.
 return a table object.
@@ -1678,7 +1707,12 @@ $name_or_handler: the CSV file name or an already opened file handler. If a hand
 $includeHeader: 0 or 1 to ignore/interpret the first line in the file as column names,
 If it is set to 0, the array in $header is used. If $header is not supplied, the default column names are "col1", "col2", ...
 optional named argument OS specifies under which operating system the CSV file was generated. 0 for UNIX, 1 for PC and 2 for MAC. If not specified, $Data::Table::DEFAULTS{'OS'} is used, which defaults to UNIX. Basically linebreak is defined as "\n", "\r\n" and "\r" for three systems, respectively.
-optional name argument delimiter and qualifier let user replace comma and double-quote by other meaningful single characters.
+
+optional name argument delimiter and qualifier let user replace comma and double-quote by other meaningful single characters. <b>Exception</b>: if the delimiter or the qualifier is a special symbol in regular expression, you must escape it by '\'. For example, in order to use pipe symbol as the delimiter, you must specify the delimiter as '\|'.
+
+optional name argument skip_lines let you specify how many lines in the csv file should be skipped, before the data are interpretted.
+
+optional name argument skip_pattern let you specify a regular expression. Lines that match the regular expression will be skipped.
 
 The following example reads a DOS format CSV file and writes a MAC format:
 
@@ -1689,6 +1723,7 @@ The following example reads a DOS format CSV file and writes a MAC format:
   close(SRC);
 
 The following example reads a non-standard CSV file with : as the delimiter, ' as the qaulifier
+
   my $s="col_A:col_B:col_C\n1:2, 3 or 5:3.5\none:'one:two':'double\", single'''";
   open my $fh, "<", \$s or die "Cannot open in-memory file\n";
   my $t_fh=Data::Table::fromCSV($fh, 1, undef, {delimiter=>':', qualifier=>"'"});
@@ -1700,11 +1735,15 @@ The following example reads a non-standard CSV file with : as the delimiter, ' a
   # one,one:two,"double"", single'"
   print $t->csv(1, {delimiter=>':', qualifier=>"'"}); # prints the csv file use the original definition
 
+The following example reads bbb.csv file (included in the package) by skipping the first line (skip_lines=>1), then treats any line that starts with '#' (or space comma) as comments (skip_pattern=>'^\s*#'), use ':' as the delimiter.
+
+  $t = Data::Table::fromCSV("bbb.csv", 1, undef, {skip_lines=>1, delimiter=>':', skip_pattern=>'^\s*#'});
+
 =item table table::fromCSVi ($name, $includeHeader = 1, $header = ["col1", ... ])
 
 Same as Data::Table::fromCSV. However, this is an instant method (that's what 'i' stands for), which can be inherited.
 
-=item table Data::Table::fromTSV ($name, $includeHeader = 1, $header = ["col1", ... ], {OS=>$Data::Table::DEFAULTS{'OS'}})
+=item table Data::Table::fromTSV ($name, $includeHeader = 1, $header = ["col1", ... ], {OS=>$Data::Table::DEFAULTS{'OS'}, skip_lines=>0, skip_pattern=>undef})
 
 create a table from a TSV file.
 return a table object.
@@ -1712,7 +1751,13 @@ $name: the TSV file name or an already opened file handler. If a handler is used
 $includeHeader: 0 or 1 to ignore/interpret the first line in the file as column names,
 If it is set to 0, the array in $header is used. If $header is not supplied, the default column names are "col1", "col2", ...
 optional named argument OS specifies under which operating system the TSV file was generated. 0 for UNIX, 1 for P
-C and 2 for MAC. If not specified, $Data::Table::DEFAULTS{'OS'} is used, which defaults to UNIX. Basically linebreak is defined as "\n", "\r\n" and "\r" for three systems, respectively.
+C and 2 for MAC. If not specified, $Data::Table::DEFAULTS{'OS'} is used, which defaults to UNIX. Basically linebreak is defined as "\n", "\r\n" and "\r" for three systems, respectively.  <b>Exception</b>: if the delimiter or the qualifier is a special symbol in regular expression, you must escape it by '\'. For example, in order to use pipe symbol as the delimiter, you must specify the delimiter as '\|'.
+
+optional name argument skip_lines let you specify how many lines in the csv file should be skipped, before the data are interpretted.
+
+optional name argument skip_pattern let you specify a regular expression. Lines that match the regular expression will be skipped.
+
+See similar examples under Data::Table::fromCSV;
 
 Note: read "TSV FORMAT" section for details.
 
@@ -1782,13 +1827,14 @@ be aware that the type of a table should be considered as volatile during method
 
 =over 4
 
-=item string table::csv ($header, {OS=>$Data::Table::DEFAULTS{'OS'}, file=>undef})
+=item string table::csv ($header, {OS=>$Data::Table::DEFAULTS{'OS'}, file=>undef, delimiter=>$Data::Table::DEFAULTS{'CSV_DELIMITER'}, qualifier=>$Data::Table::DEFAULTS{'CSV_QAULIFIER'}})
 
 return a string corresponding to the CSV representation of the table.
 $header controls whether to print the header line, 1 for yes, 0 for no.
 optional named argument OS specifies for which operating system the CSV file is generated. 0 for UNIX, 1 for P
 C and 2 for MAC. If not specified, $Data::Table::DEFAULTS{'OS'} is used. Basically linebreak is defined as "\n", "\r\n" and "\r" for three systems, respectively.
 if 'file' is given, the csv content will be written into it, besides returning the string.
+One may specify custom delimiter and qualifier if the other than default are desired.
 
 =item string table::tsv
 
@@ -2158,7 +2204,7 @@ Here is a summary (partially repeat) of some classic usages of Data::Table.
 
 =head1 AUTHOR
 
-Copyright 1998-2000, Yingyao Zhou & Guangzhou Zou. All rights reserved.
+Copyright 1998-2006, Yingyao Zhou & Guangzhou Zou. All rights reserved.
 
 It was first written by Zhou in 1998, significantly improved and maintained by Zou since 1999. The authors thank Tong Peng and Yongchuang Tao for valuable suggestions. We also thank those who kindly reported bugs, some of them are acknowledged in the "Changes" file.
 

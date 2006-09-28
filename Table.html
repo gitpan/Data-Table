@@ -158,7 +158,7 @@ to create a table object from a CSV/TSV file or a database SQL selection in a sn
 record matching via keywords or patterns, table merging, and web publishing.   
 Data::Table class also provides a straightforward interface to other
 popular Perl modules such as DBI and GD::Graph.</p>
-<p>The current version of Table.pm is available at <a href="http://www.geocities.com/easydatabase">http://www.geocities.com/easydatabase</a></p>
+<p>The current version of Table.pm is available at <a href="http://easydatabase.googlepages.com">http://easydatabase.googlepages.com</a></p>
 <p>We use Data::Table instead of Table, because Table.pm has already been used inside PerlQt module in CPAN.</p>
 <p>
 </p>
@@ -248,11 +248,6 @@ see table::match_string and table::match_pattern
 Store default settings, currently it contains CSV_DELIMITER (set to ','), CSV_QUALIFER (set to '``'), and OS (set to 0).
 see table::fromCSV, table::csv, table::fromTSV, table::tsv for details.
 </dd>
-<dd>
-<p># =item $Data::Table::ID
-# 
-#see Data::Table::fromSQL</p>
-</dd>
 <p></p></dl>
 <p>
 </p>
@@ -304,7 +299,7 @@ make a clone of the original.
 It return a table object, equivalent to table::subTable(undef,undef).
 </dd>
 <p></p>
-<dt><strong><a name="item_fromcsv">table Data::Table::fromCSV ($name_or_handler, $includeHeader = 1, $header = [``col1'', ... ], {OS=&gt;$Data::Table::DEFAULTS{'OS'}})</a></strong><br />
+<dt><strong><a name="item_fromcsv">table Data::Table::fromCSV ($name_or_handler, $includeHeader = 1, $header = [``col1'', ... ], {OS=&gt;$Data::Table::DEFAULTS{'OS'}, delimiter=&gt;$Data::Table::DEFAULTS{'CSV_DELIMITER'}, qualifier=&gt;$Data::Table::DEFAULTS{'CSV_QUALIFIER'}, skip_lines=&gt;0, skip_pattern=&gt;undef})</a></strong><br />
 </dt>
 <dd>
 create a table from a CSV file.
@@ -313,7 +308,15 @@ $name_or_handler: the CSV file name or an already opened file handler. If a hand
 $includeHeader: 0 or 1 to ignore/interpret the first line in the file as column names,
 If it is set to 0, the array in $header is used. If $header is not supplied, the default column names are ``col1'', ``col2'', ...
 optional named argument OS specifies under which operating system the CSV file was generated. 0 for UNIX, 1 for PC and 2 for MAC. If not specified, $Data::Table::DEFAULTS{'OS'} is used, which defaults to UNIX. Basically linebreak is defined as ``\n'', ``\r\n'' and ``\r'' for three systems, respectively.
-optional name argument delimiter and qualifier let user replace comma and double-quote by other meaningful single characters.
+</dd>
+<dd>
+<p>optional name argument delimiter and qualifier let user replace comma and double-quote by other meaningful single characters. &lt;b&gt;Exception&lt;/b&gt;: if the delimiter or the qualifier is a special symbol in regular expression, you must escape it by '\'. For example, in order to use pipe symbol as the delimiter, you must specify the delimiter as '\|'.</p>
+</dd>
+<dd>
+<p>optional name argument skip_lines let you specify how many lines in the csv file should be skipped, before the data are interpretted.</p>
+</dd>
+<dd>
+<p>optional name argument skip_pattern let you specify a regular expression. Lines that match the regular expression will be skipped.</p>
 </dd>
 <dd>
 <p>The following example reads a DOS format CSV file and writes a MAC format:</p>
@@ -327,17 +330,27 @@ optional name argument delimiter and qualifier let user replace comma and double
   close(SRC);</pre>
 </dd>
 <dd>
-<p>The following example reads a non-standard CSV file with : as the delimiter, ' as the qaulifier
-  my $s=``col_A:col_B:col_C\n1:2, 3 or 5:3.5\none:'one:two':'double\'', single'''``;
-  open my $fh, ''&lt;``, \$s or die ''Cannot open in-memory file\n``;
-  my $t_fh=Data::Table::fromCSV($fh, 1, undef, {delimiter=&gt;':', qualifier=&gt;'''``});
+<p>The following example reads a non-standard CSV file with : as the delimiter, ' as the qaulifier</p>
+</dd>
+<dd>
+<pre>
+  my $s=&quot;col_A:col_B:col_C\n1:2, 3 or 5:3.5\none:'one:two':'double\&quot;, single'''&quot;;
+  open my $fh, &quot;&lt;&quot;, \$s or die &quot;Cannot open in-memory file\n&quot;;
+  my $t_fh=Data::Table::fromCSV($fh, 1, undef, {delimiter=&gt;':', qualifier=&gt;&quot;'&quot;});
   close($fh);
   print $t_fh-&gt;csv;
   # convert to the standard CSV (comma as the delimiter, double quote as the qualifier)
   # col_A,col_B,col_C
-  # 1,''2, 3 or 5``,3.5
-  # one,one:two,''double``'', single'``
-  print $t-&gt;csv(1, {delimiter=&gt;':', qualifier=&gt;'''``}); # prints the csv file use the original definition</p>
+  # 1,&quot;2, 3 or 5&quot;,3.5
+  # one,one:two,&quot;double&quot;&quot;, single'&quot;
+  print $t-&gt;csv(1, {delimiter=&gt;':', qualifier=&gt;&quot;'&quot;}); # prints the csv file use the original definition</pre>
+</dd>
+<dd>
+<p>The following example reads bbb.csv file (included in the package) by skipping the first line (skip_lines=&gt;1), then treats any line that starts with '#' (or space comma) as comments (skip_pattern=&gt;'^\s*#'), use ':' as the delimiter.</p>
+</dd>
+<dd>
+<pre>
+  $t = Data::Table::fromCSV(&quot;bbb.csv&quot;, 1, undef, {skip_lines=&gt;1, delimiter=&gt;':', skip_pattern=&gt;'^\s*#'});</pre>
 </dd>
 <p></p>
 <dt><strong><a name="item_fromcsvi">table table::fromCSVi ($name, $includeHeader = 1, $header = [``col1'', ... ])</a></strong><br />
@@ -346,7 +359,7 @@ optional name argument delimiter and qualifier let user replace comma and double
 Same as Data::Table::fromCSV. However, this is an instant method (that's what 'i' stands for), which can be inherited.
 </dd>
 <p></p>
-<dt><strong><a name="item_fromtsv">table Data::Table::fromTSV ($name, $includeHeader = 1, $header = [``col1'', ... ], {OS=&gt;$Data::Table::DEFAULTS{'OS'}})</a></strong><br />
+<dt><strong><a name="item_fromtsv">table Data::Table::fromTSV ($name, $includeHeader = 1, $header = [``col1'', ... ], {OS=&gt;$Data::Table::DEFAULTS{'OS'}, skip_lines=&gt;0, skip_pattern=&gt;undef})</a></strong><br />
 </dt>
 <dd>
 create a table from a TSV file.
@@ -355,7 +368,16 @@ $name: the TSV file name or an already opened file handler. If a handler is used
 $includeHeader: 0 or 1 to ignore/interpret the first line in the file as column names,
 If it is set to 0, the array in $header is used. If $header is not supplied, the default column names are ``col1'', ``col2'', ...
 optional named argument OS specifies under which operating system the TSV file was generated. 0 for UNIX, 1 for P
-C and 2 for MAC. If not specified, $Data::Table::DEFAULTS{'OS'} is used, which defaults to UNIX. Basically linebreak is defined as ``\n'', ``\r\n'' and ``\r'' for three systems, respectively.
+C and 2 for MAC. If not specified, $Data::Table::DEFAULTS{'OS'} is used, which defaults to UNIX. Basically linebreak is defined as ``\n'', ``\r\n'' and ``\r'' for three systems, respectively.  &lt;b&gt;Exception&lt;/b&gt;: if the delimiter or the qualifier is a special symbol in regular expression, you must escape it by '\'. For example, in order to use pipe symbol as the delimiter, you must specify the delimiter as '\|'.
+</dd>
+<dd>
+<p>optional name argument skip_lines let you specify how many lines in the csv file should be skipped, before the data are interpretted.</p>
+</dd>
+<dd>
+<p>optional name argument skip_pattern let you specify a regular expression. Lines that match the regular expression will be skipped.</p>
+</dd>
+<dd>
+<p>See similar examples under Data::Table::fromCSV;</p>
 </dd>
 <dd>
 <p>Note: read ``TSV FORMAT'' section for details.</p>
@@ -443,7 +465,7 @@ be aware that the type of a table should be considered as volatile during method
 </p>
 <h2><a name="table_formatting">Table Formatting</a></h2>
 <dl>
-<dt><strong><a name="item_csv">string table::csv ($header, {OS=&gt;$Data::Table::DEFAULTS{'OS'}, file=&gt;undef})</a></strong><br />
+<dt><strong><a name="item_csv">string table::csv ($header, {OS=&gt;$Data::Table::DEFAULTS{'OS'}, file=&gt;undef, delimiter=&gt;$Data::Table::DEFAULTS{'CSV_DELIMITER'}, qualifier=&gt;$Data::Table::DEFAULTS{'CSV_QAULIFIER'}})</a></strong><br />
 </dt>
 <dd>
 return a string corresponding to the CSV representation of the table.
@@ -451,6 +473,7 @@ $header controls whether to print the header line, 1 for yes, 0 for no.
 optional named argument OS specifies for which operating system the CSV file is generated. 0 for UNIX, 1 for P
 C and 2 for MAC. If not specified, $Data::Table::DEFAULTS{'OS'} is used. Basically linebreak is defined as ``\n'', ``\r\n'' and ``\r'' for three systems, respectively.
 if 'file' is given, the csv content will be written into it, besides returning the string.
+One may specify custom delimiter and qualifier if the other than default are desired.
 </dd>
 <p></p>
 <dt><strong><a name="item_string_table_3a_3atsv">string table::tsv</a></strong><br />
@@ -919,13 +942,15 @@ interface between databases, web pages, CSV/TSV files, graphics packages, etc.</
 </p>
 <hr />
 <h1><a name="author">AUTHOR</a></h1>
-<p>Copyright 1998-2000, Yingyao Zhou &amp; Guangzhou Zou. All rights reserved.</p>
+<p>Copyright 1998-2006, Yingyao Zhou &amp; Guangzhou Zou. All rights reserved.</p>
 <p>It was first written by Zhou in 1998, significantly improved and maintained by Zou since 1999. The authors thank Tong Peng and Yongchuang Tao for valuable suggestions. We also thank those who kindly reported bugs, some of them are acknowledged in the ``Changes'' file.</p>
 <p>This library is free software; you can redistribute it and/or modify
 it under the same terms as Perl itself.</p>
 <p>Please send bug reports and comments to: easydatabase at gmail dot com. When sending
 bug reports, please provide the version of Table.pm, the version of
-Perl.</p>
+Perl.
+
+</p>
 <p>
 </p>
 <hr />

@@ -1,4 +1,19 @@
 Revision history for Perl extension Table.
+
+Thu Sep 28 07:21:38 PDT 2006
+  Small modifications to sort subroutine example in the document, no bug.
+
+  join method, if $cols2 is undefined, defaults @$cols2 to @$cols1
+  Update fromCSV, fromTSV, csv methods to be able to deal with certain delimiters correctly.
+    (When the delimiter is a special symbol for regexp, it should be escaped, e.g., set delimiter to '\|' for pipe symbol).
+  Thanks to suggestions from Michael Slaven.
+
+  update fromCSV, fromTSV to take additional arguments: skip_lines and skip_pattern
+  skip_lines lets user skip several lines in the beginning of the input file
+  skip_pattern lets user skip all lines that match a regular expression
+  Please read documents under fromCSV and fromTSV for details.
+  Thanks to suggestions from Wenbin Ye.
+
 1.49 Wed Aug 30 09:29:51 PDT 2006
   Add %Data::Table::DEFAULTS to store the default settings for OS, CSV_DELIMITER and CSV_QUALIFIER
   Thanks to suggestions from Roman Filippov

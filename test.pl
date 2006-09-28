@@ -6,7 +6,7 @@
 # Change 1..1 below to 1..last_test_to_print .
 # (It may become useful if the test is moved to ./t subdirectory.)
 
-BEGIN { $| = 1; print "1..57\n"; }
+BEGIN { $| = 1; print "1..58\n"; }
 END {print "not ok 1\n" unless $loaded;}
 use Data::Table;
 use Data::Dumper;
@@ -380,7 +380,7 @@ $t->sort("PlateWell", 1, 0);
 my $my_sort_func = sub {
   my @a = split /_/, $_[0];
   my @b = split /_/, $_[1];
-  my $res = ($a[0] cmp $b[0]) || (int($a[1]) <=> int($b[1]));
+  return ($a[0] cmp $b[0]) || (int($a[1]) <=> int($b[1]));
 };
 $t->sort("PlateWell", $my_sort_func, 0);
 #print join(" ", $t->col("PlateWell"));
@@ -408,6 +408,15 @@ if ($t_fh->elm(0, 'col_B') eq "2, 3 or 5"
   print "not ok 55 using custom delimiter and qualifier for fromCSV\n";
 } 
 
+$t = Data::Table::fromCSV("bbb.csv", 1, undef, {skip_lines=>1, delimiter=>':', skip_pattern=>'^\s*#'});
+$s = $t->tsv;
+$t2 = Data::Table::fromTSV("aaa.tsv", 1);
+if (equal($t->rowRefs, $t2->rowRefs)) {
+  print "ok 56 using skip_lines and skip_pattern for fromCSV\n";
+} else {
+  print "not ok 56 using skip_lines and skip_pattern for fromCSV\n";
+}
+
 # use DBI;
 # $dbh= DBI->connect("DBI:mysql:test", "test", "") or die $dbh->errstr;
 # $t = Data::Table::fromSQL($dbh, "show tables");
@@ -424,15 +433,15 @@ package main;
 
 $foo=FOO->new([[11,12],[21,22],[31,32]],['header1','header2'],0);
 if ($foo->csv) {
-  print "ok 56 Inheritance\n";
+  print "ok 57 Inheritance\n";
 } else {
-  print "not ok 56 Inheritance\n";
+  print "not ok 57 Inheritance\n";
 }
 $foo = FOO->fromCSVi("aaa.csv");
 if ($foo->csv) {
-  print "ok 57 inheritated instant method fromCSVi\n";
+  print "ok 58 inheritated instant method fromCSVi\n";
 } else {
-  print "not ok 57 inheritated instant method fromCSVi\n";
+  print "not ok 58 inheritated instant method fromCSVi\n";
 }
 
 sub equal {
