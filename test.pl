@@ -6,7 +6,7 @@
 # Change 1..1 below to 1..last_test_to_print .
 # (It may become useful if the test is moved to ./t subdirectory.)
 
-BEGIN { $| = 1; print "1..58\n"; }
+BEGIN { $| = 1; print "1..60\n"; }
 END {print "not ok 1\n" unless $loaded;}
 use Data::Table;
 use Data::Dumper;
@@ -351,7 +351,9 @@ if ($t2->nofRow == 2 && $t2->nofCol == 3) {
 }
 
 my $s = $t2->csv;
-open my $fh, "<", \$s or die "Cannot open in-memory file\n";
+#open my $fh, "<", \$s or die "Cannot open in-memory file\n";
+my $fh;
+open($fh, "ccc.csv") or die "Cannot open ccc.csv to read\n";
 my $t_fh=Data::Table::fromCSV($fh);
 close($fh);
 if ($t_fh->csv eq $s) {
@@ -361,8 +363,9 @@ if ($t_fh->csv eq $s) {
 }
 #print $t2->csv;
 
-my $s = $t2->tsv;
-open my $fh, "<", \$s or die "Cannot open in-memory file\n";
+#my $s = $t2->tsv;
+#open my $fh, "<", \$s or die "Cannot open in-memory file\n";
+open($fh, "ccc.csv") or die "Cannot open ccc.csv to read\n";
 my $t_fh=Data::Table::fromTSV($fh);
 close($fh);
 if ($t_fh->tsv eq $s) {
@@ -417,6 +420,26 @@ if (equal($t->rowRefs, $t2->rowRefs)) {
   print "not ok 56 using skip_lines and skip_pattern for fromCSV\n";
 }
 
+if (Data::Table::fromFileGuessOS("t_unix.csv")==0 &&
+    Data::Table::fromFileGuessOS("t_dos.csv")==1 && 
+    Data::Table::fromFileGuessOS("t_mac.csv")==2){
+  print "ok 57 using fromFileGuessOS\n";
+} else {
+  print "not ok 57 using fromFileGuessOS\n";
+}
+
+my $t_unix=Data::Table::fromFile("t_unix.csv");
+my $t_unix_noheader=Data::Table::fromFile("t_unix_noheader.csv");
+my $t_dos=Data::Table::fromFile("t_dos.csv");
+my $t_mac=Data::Table::fromFile("t_mac.csv");
+if (equal($t_unix->rowRefs, $t_unix_noheader->rowRefs) &&
+    equal($t_unix->rowRefs, $t_dos->rowRefs) &&
+    equal($t_unix->rowRefs, $t_mac->rowRefs)) {
+  print "ok 58 using fromFile\n";
+} else {
+  print "not ok 58 using fromFile\n";
+}
+
 # use DBI;
 # $dbh= DBI->connect("DBI:mysql:test", "test", "") or die $dbh->errstr;
 # $t = Data::Table::fromSQL($dbh, "show tables");
@@ -433,15 +456,15 @@ package main;
 
 $foo=FOO->new([[11,12],[21,22],[31,32]],['header1','header2'],0);
 if ($foo->csv) {
-  print "ok 57 Inheritance\n";
+  print "ok 59 Inheritance\n";
 } else {
-  print "not ok 57 Inheritance\n";
+  print "not ok 59 Inheritance\n";
 }
 $foo = FOO->fromCSVi("aaa.csv");
 if ($foo->csv) {
-  print "ok 58 inheritated instant method fromCSVi\n";
+  print "ok 60 inheritated instant method fromCSVi\n";
 } else {
-  print "not ok 58 inheritated instant method fromCSVi\n";
+  print "not ok 60 inheritated instant method fromCSVi\n";
 }
 
 sub equal {

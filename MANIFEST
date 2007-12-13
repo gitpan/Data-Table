@@ -7,3 +7,7 @@ test.pl
 aaa.csv
 aaa.tsv
 bbb.csv
+t_dos.csv
+t_unix.csv
+t_unix_noheader.csv
+t_mac.csv

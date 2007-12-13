@@ -68,8 +68,12 @@
                                         # $data as the rows of the table).
   print $t-&gt;csv;                        # Print out the table as a csv file.</pre>
 <pre>
-  
   $t = Data::Table::fromCSV(&quot;aaa.csv&quot;);       # Read a csv file into a table object
+  ### Since version 1.51, a new method fromFile can automatically guess the correct file format
+  # either CSV or TSV file, file with or without a column header line
+  # e.g.
+  #   $t = Data::Table::fromFile(&quot;aaa.csv&quot;);
+  # is equivalent.
   print $t-&gt;html;                       # Display a 'portrait' HTML TABLE on web.</pre>
 <pre>
   use DBI;
@@ -152,7 +156,7 @@
 manipulating spreadsheet data among disk files, database, and Web
 publishing.</p>
 <p>A table object contains a header and a two-dimensional array of scalars.
-Three class methods Data::Table::fromCSV, Data::Table::fromTSV, and Data::Table::fromSQL allow users
+Four class methods Data::fromFile, Data::Table::fromCSV, Data::Table::fromTSV, and Data::Table::fromSQL allow users
 to create a table object from a CSV/TSV file or a database SQL selection in a snap.</p>
 <p>Table methods provide basic access, add, delete <a href="#item_row"><code>row(s)</code></a> or <code>column(s)</code> operations, as well as more advanced sub-table extraction, table sorting,
 record matching via keywords or patterns, table merging, and web publishing.   
@@ -387,6 +391,32 @@ C and 2 for MAC. If not specified, $Data::Table::DEFAULTS{'OS'} is used, which d
 </dt>
 <dd>
 Same as Data::Table::fromTSV. However, this is an instant method (that's what 'i' stands for), which can be inherited.
+</dd>
+<p></p>
+<dt><strong><a name="item_fromfile">table Data::Table::fromFile ($name)</a></strong><br />
+</dt>
+<dd>
+create a table from a text file.
+return a table object.
+$name: the file name (cannot take a file handler).
+</dd>
+<dd>
+<p>fromFile is added after version 1.51. It relies on the following new methods to automatically figure out the correct file format in order to call fromCSV or fromTSV internally:</p>
+</dd>
+<dd>
+<pre>
+  fromFileGuessOS($name)
+  fromFileGetFirstLine($name, $os) # $os defaults to fromFileGuessOS($name), if not specified
+  fromFileIsHeader($s, $delimiter) # $delimiter defaults to $Data::Table::DEFAULTS{'CSV_DELIMITER'}
+  fromFileGuessDelimiter($s)       # guess delimiter from &quot;,&quot;, &quot;\t&quot;, &quot;:&quot;;</pre>
+</dd>
+<dd>
+<p>It first ask fromFileGuessOS to figure out which OS (UNIX, PC or MAC) generated the input file. The fetch the first line using fromFileGetFirstLine. If checks if the first line looks like a column header using fromFileIsHeader, guesses the best delimiter using fromFileGuessDelimiter.  Since fromFileGuessOS and fromFileGetFirstLine needs to open/close the input file, these methods can only take file name, not file handler.</p>
+</dd>
+<dd>
+<p>fromFileGuessOS finds the linebreak that gives shortest first line (in the priority of UNIX, PC, MAC upon tie).
+fromFileIsHeader works based on the assumption that no column header can be empty or pure numeric value.
+fromFileGuessDelimiter works based on the assumption that the correct delimiter gives maximum number of columns.</p>
 </dd>
 <p></p>
 <dt><strong><a name="item_fromsql">table Data::Table::fromSQL ($dbh, $sql, $vars)</a></strong><br />
@@ -919,6 +949,9 @@ interface between databases, web pages, CSV/TSV files, graphics packages, etc.</
 <p>
 </p>
 <h2><a name="interface_to_csv_tsv">Interface to CSV/TSV</a></h2>
+<pre>
+  $t = fromFile(&quot;mydata.csv&quot;); # after version 1.51
+  $t = fromFile(&quot;mydata.tsv&quot;); # after version 1.51</pre>
 <pre>
   $t = fromCSV(&quot;mydata.csv&quot;);
   $t-&gt;sort(1,1,0);

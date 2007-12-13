@@ -15,7 +15,7 @@ require AutoLoader;
 @EXPORT = qw(
 	
 );
-$VERSION = '1.50';
+$VERSION = '1.51';
 %DEFAULTS = (
   "CSV_DELIMITER"=>',', # controls how to read/write CSV file
   "CSV_QUALIFIER"=>'"',
@@ -53,9 +53,12 @@ sub checkHeader {
   my $colHash = {};
   for (my $i = 0; $i < scalar @$header; $i++) {
     my $elm = $header->[$i];
-    confess "Invalid column name: $elm" unless ($elm =~ /\D/);
-    confess "Undefined column name at \$header->[$i]" unless $elm;
-    confess "Header name ".$colHash->{$elm}." appears more than once" if defined($colHash->{$elm});
+    confess "Invalid column name (all digits): $elm at column ".($i+1) unless ($elm =~ /\D/);
+    confess "Undefined column name (empty or all space) at column ".($i+1) unless $elm;
+    #confess "Header name ".$colHash->{$elm}." appears more than once" if defined($colHash->{$elm});
+    if (defined($colHash->{$elm})) {
+      confess "Header name ($elm) appears more than once: in column ".($colHash->{$elm}+1)." and column ".($i+1).".";
+    }
     $colHash->{$elm} = $i;
   }
   return $colHash;
@@ -936,7 +939,8 @@ sub fromCSV {
   if (substr($s, -$n_endl, $n_endl) eq $newRowDelimiter) { for (1..$n_endl) { chop $s }}
   # $_=~ s/$newRowDelimiter$//;
   unless ($s) {
-    confess "Empty data file" unless $givenHeader;
+    #confess "Empty data file" unless $givenHeader;
+    return undef unless $givenHeader;
     $/=$oldRowDelimiter;
     return new Data::Table(\@data, \@header, 0);
   }
@@ -1439,6 +1443,89 @@ sub pivot {
   return new Data::Table(\@ones, \@header, 0);
 }
 
+sub fromFileGuessOS {
+  my ($name) = @_;
+  my $SRC;
+  my @OS=("\n", "\r\n", "\r");
+  # operatoring system: 0 for UNIX (\n as linebreak), 1 for Windows
+  # (\r\n as linebreak), 2 for MAC  (\r as linebreak)
+  my ($len, $os)=(-1, -1);
+  for (my $i=0; $i<@OS; $i++) {
+    open($SRC, $name) or confess "Cannot open $name to read";
+    local($/)=$OS[$i];
+    my $s = <$SRC>;
+    #print ">> $i => ". (length($s)-length($OS[$i]))."\n";
+    my $myLen=length($s)-length($OS[$i]);
+    if ($len<0 || ($myLen>0 && $myLen<$len)) {
+      $len=length($s)-length($OS[$i]);
+      $os=$i;
+    }
+    close($SRC);
+  }
+  # find the OS linebreak that gives the shortest first line
+  return $os;
+}
+
+sub fromFileGetFirstLine {
+  my ($name, $os) = @_;
+  $os = fromFileGuessOS($name) unless defined($os);
+  my @OS=("\n", "\r\n", "\r"); 
+  # operatoring system: 0 for UNIX (\n as linebreak), 1 for Windows
+  # (\r\n as linebreak), 2 for MAC  (\r as linebreak)
+  my $SRC;
+  open($SRC, $name) or confess "Cannot open $name to read";
+  local($/)=$OS[$os];
+  my $s = <$SRC>;
+  $s=substr($s, 0, -length($OS[$os]));
+  close($SRC);
+  return $s;
+}
+
+sub fromFileIsHeader {
+  my ($s, $delimiter) = @_;
+  $delimiter=$Data::Table::DEFAULTS{'CSV_DELIMITER'} unless defined($delimiter);
+  return 0 if ($s eq "" || $s=~ /$delimiter$/);
+  my @S=split(/$delimiter/, $s);
+  foreach my $name (@S) {
+    return 0 unless $name;
+    next if $name=~/[^0-9.eE\-+]/;
+    return 0 if $name=~/^[-+]?[0-9]*\.?[0-9]+([eE][-+]?[0-9]+)?/;
+  }
+  return 1;
+}
+
+sub fromFileGuessDelimiter {
+  my $s_line= shift;
+  my @DELIMITER=(",","\t",":");
+  my $numCol=0; my $i=-1;
+  for (my $d=0; $d<@DELIMITER; $d++) {
+    #for (my $q=0; $q<@QUALIFIER; $q++) {
+      my $header = parseCSV($s_line, 0, {delimiter=>$DELIMITER[$d]});
+      if (scalar @$header > $numCol) {
+        $numCol=scalar @$header; $i=$d;
+      }
+    #}
+  }
+  return ($i<0)?$Data::Table::DEFAULTS{CSV_DELIMITER}:$DELIMITER[$i];
+}
+
+sub fromFile {
+  my $name = shift;
+  my $os = fromFileGuessOS($name);
+  my $s = fromFileGetFirstLine($name, $os);
+  my $delimiter = fromFileGuessDelimiter($s);
+  my $hasHeader = fromFileIsHeader($s);
+  my $t = undef;
+  #print ">>>$s\n";
+  #print "OS=$os, hasHeader=$hasHeader, delimiter=$delimiter\n";
+  if ($delimiter eq "\t") {
+    $t=fromTSV($name, $hasHeader, undef, {OS=>$os});
+  } else {
+    $t=fromCSV($name, $hasHeader, undef, {OS=>$os, delimiter=>$delimiter});
+  }
+  return $t;
+}
+
 ## interface to GD::Graph
 # use GD::Graph::points;
 # $graph = GD::Graph::points->new(400, 300);
@@ -1469,8 +1556,12 @@ Data::Table - Data type related to database tables, spreadsheets, CSV/TSV files,
 					# $data as the rows of the table).
   print $t->csv;                        # Print out the table as a csv file.
 
-  
   $t = Data::Table::fromCSV("aaa.csv");       # Read a csv file into a table object
+  ### Since version 1.51, a new method fromFile can automatically guess the correct file format
+  # either CSV or TSV file, file with or without a column header line
+  # e.g.
+  #   $t = Data::Table::fromFile("aaa.csv");
+  # is equivalent.
   print $t->html;                       # Display a 'portrait' HTML TABLE on web. 
 
   use DBI;
@@ -1553,7 +1644,7 @@ manipulating spreadsheet data among disk files, database, and Web
 publishing.
 
 A table object contains a header and a two-dimensional array of scalars.
-Three class methods Data::Table::fromCSV, Data::Table::fromTSV, and Data::Table::fromSQL allow users
+Four class methods Data::fromFile, Data::Table::fromCSV, Data::Table::fromTSV, and Data::Table::fromSQL allow users
 to create a table object from a CSV/TSV file or a database SQL selection in a snap.
 
 Table methods provide basic access, add, delete row(s) or column(s) operations, as well as more advanced sub-table extraction, table sorting,
@@ -1764,6 +1855,25 @@ Note: read "TSV FORMAT" section for details.
 =item table table::fromTSVi ($name, $includeHeader = 1, $header = ["col1", ... ])
 
 Same as Data::Table::fromTSV. However, this is an instant method (that's what 'i' stands for), which can be inherited.
+
+=item table Data::Table::fromFile ($name)
+
+create a table from a text file.
+return a table object.
+$name: the file name (cannot take a file handler).
+
+fromFile is added after version 1.51. It relies on the following new methods to automatically figure out the correct file format in order to call fromCSV or fromTSV internally:
+
+  fromFileGuessOS($name)
+  fromFileGetFirstLine($name, $os) # $os defaults to fromFileGuessOS($name), if not specified
+  fromFileIsHeader($s, $delimiter) # $delimiter defaults to $Data::Table::DEFAULTS{'CSV_DELIMITER'}
+  fromFileGuessDelimiter($s)       # guess delimiter from ",", "\t", ":";
+
+It first ask fromFileGuessOS to figure out which OS (UNIX, PC or MAC) generated the input file. The fetch the first line using fromFileGetFirstLine. If checks if the first line looks like a column header using fromFileIsHeader, guesses the best delimiter using fromFileGuessDelimiter.  Since fromFileGuessOS and fromFileGetFirstLine needs to open/close the input file, these methods can only take file name, not file handler.
+
+fromFileGuessOS finds the linebreak that gives shortest first line (in the priority of UNIX, PC, MAC upon tie).
+fromFileIsHeader works based on the assumption that no column header can be empty or pure numeric value.
+fromFileGuessDelimiter works based on the assumption that the correct delimiter gives maximum number of columns.
 
 =item table Data::Table::fromSQL ($dbh, $sql, $vars)
 
@@ -2183,6 +2293,9 @@ Here is a summary (partially repeat) of some classic usages of Data::Table.
   print $t->html;
 
 =head2 Interface to CSV/TSV
+
+  $t = fromFile("mydata.csv"); # after version 1.51
+  $t = fromFile("mydata.tsv"); # after version 1.51
 
   $t = fromCSV("mydata.csv");
   $t->sort(1,1,0);
