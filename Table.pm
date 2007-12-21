@@ -15,7 +15,7 @@ require AutoLoader;
 @EXPORT = qw(
 	
 );
-$VERSION = '1.51';
+$VERSION = '1.52';
 %DEFAULTS = (
   "CSV_DELIMITER"=>',', # controls how to read/write CSV file
   "CSV_QUALIFIER"=>'"',
@@ -145,6 +145,7 @@ sub csv {
       $OUT = $fileName_or_handler;
     } else {
       open($OUT, "> $fileName_or_handler") or confess "Cannot open $fileName_or_handler to write.\n";
+      binmode $OUT;
     }
     print $OUT $s;
     close($OUT) unless $isFileHandler;
@@ -178,6 +179,7 @@ sub tsv {
       $OUT = $fileName_or_handler;
     } else {
       open($OUT, "> $fileName_or_handler") or confess "Cannot open $fileName_or_handler to write.\n";
+      binmode $OUT;
     }
     print $OUT $s;
     close($OUT) unless $isFileHandler;;
@@ -924,6 +926,7 @@ sub fromCSV {
     $SRC = $name_or_handler; # a file handler
   } else {
     open($SRC, $name_or_handler) or confess "Cannot open $name_or_handler to read";
+    binmode $SRC;
   }
   my @data = ();
   my $oldRowDelimiter=$/;
@@ -1057,6 +1060,7 @@ sub fromTSV {
     $SRC = $name_or_handler; # a file handler
   } else {
     open($SRC, $name_or_handler) or confess "Cannot open $name_or_handler to read";
+    binmode $SRC;
   }
   my @data = ();
   my $oldRowDelimiter=$/;
@@ -1452,6 +1456,7 @@ sub fromFileGuessOS {
   my ($len, $os)=(-1, -1);
   for (my $i=0; $i<@OS; $i++) {
     open($SRC, $name) or confess "Cannot open $name to read";
+    binmode $SRC;
     local($/)=$OS[$i];
     my $s = <$SRC>;
     #print ">> $i => ". (length($s)-length($OS[$i]))."\n";
@@ -1466,25 +1471,32 @@ sub fromFileGuessOS {
   return $os;
 }
 
-sub fromFileGetFirstLine {
-  my ($name, $os) = @_;
+sub fromFileGetTopLines {
+  my ($name, $os, $numLines) = @_;
   $os = fromFileGuessOS($name) unless defined($os);
+  $numLines = 2 unless defined($numLines);
   my @OS=("\n", "\r\n", "\r"); 
   # operatoring system: 0 for UNIX (\n as linebreak), 1 for Windows
   # (\r\n as linebreak), 2 for MAC  (\r as linebreak)
   my $SRC;
+  my @lines=();
   open($SRC, $name) or confess "Cannot open $name to read";
+  binmode $SRC;
   local($/)=$OS[$os];
-  my $s = <$SRC>;
-  $s=substr($s, 0, -length($OS[$os]));
+  my $cnt=0;
+  while(<$SRC>) {
+    $cnt++;
+    push @lines, bytes::substr($_, 0, -length($OS[$os]));
+    last if ($numLines>0 && $cnt>=$numLines);
+  }
   close($SRC);
-  return $s;
+  return @lines;
 }
 
 sub fromFileIsHeader {
   my ($s, $delimiter) = @_;
   $delimiter=$Data::Table::DEFAULTS{'CSV_DELIMITER'} unless defined($delimiter);
-  return 0 if ($s eq "" || $s=~ /$delimiter$/);
+  return 0 if (!defined($s) || $s eq "" || $s=~ /$delimiter$/);
   my @S=split(/$delimiter/, $s);
   foreach my $name (@S) {
     return 0 unless $name;
@@ -1497,26 +1509,45 @@ sub fromFileIsHeader {
 sub fromFileGuessDelimiter {
   my $s_line= shift;
   my @DELIMITER=(",","\t",":");
-  my $numCol=0; my $i=-1;
+  my $numCol=-1; my $i=-1;
+  return $Data::Table::DEFAULTS{CSV_DELIMITER} unless @$s_line;
   for (my $d=0; $d<@DELIMITER; $d++) {
-    #for (my $q=0; $q<@QUALIFIER; $q++) {
-      my $header = parseCSV($s_line, 0, {delimiter=>$DELIMITER[$d]});
-      if (scalar @$header > $numCol) {
-        $numCol=scalar @$header; $i=$d;
+    my $colFound=-1;
+    foreach my $line (@$s_line) {
+      unless (defined($line)) {
+        return $Data::Table::DEFAULTS{CSV_DELIMITER};
+      } else {
+        my $header = parseCSV($line, 0, {delimiter=>$DELIMITER[$d]});
+        if ($colFound<0) {
+          $colFound = scalar @$header;
+        } elsif ($colFound != scalar @$header) {
+          $colFound = -1;
+          last;
+        }
       }
-    #}
+    }
+    next if $colFound<0;
+    if ($colFound>$numCol) {
+      $numCol=$colFound; $i=$d;
+    }
   }
   return ($i<0)?$Data::Table::DEFAULTS{CSV_DELIMITER}:$DELIMITER[$i];
 }
 
 sub fromFile {
-  my $name = shift;
+  my ($name, $arg_ref) = @_;
+  my $linesChecked = 2;
+  $linesChecked= $arg_ref->{'OS'} if (defined($arg_ref) && defined($arg_ref->{'OS'}));
+  if (defined($arg_ref)) {
+    $linesChecked = $arg_ref->{'linesChecked'} if defined($arg_ref->{'linesChecked'});
+  }
   my $os = fromFileGuessOS($name);
-  my $s = fromFileGetFirstLine($name, $os);
-  my $delimiter = fromFileGuessDelimiter($s);
-  my $hasHeader = fromFileIsHeader($s);
+  my @S = fromFileGetTopLines($name, $os, $linesChecked);
+  return undef unless scalar @S;
+  my $delimiter = fromFileGuessDelimiter(\@S);
+  my $hasHeader = fromFileIsHeader($S[0], $delimiter);
   my $t = undef;
-  #print ">>>$s\n";
+  #print ">>>". join("\n", @S)."\n";
   #print "OS=$os, hasHeader=$hasHeader, delimiter=$delimiter\n";
   if ($delimiter eq "\t") {
     $t=fromTSV($name, $hasHeader, undef, {OS=>$os});
@@ -1856,24 +1887,29 @@ Note: read "TSV FORMAT" section for details.
 
 Same as Data::Table::fromTSV. However, this is an instant method (that's what 'i' stands for), which can be inherited.
 
-=item table Data::Table::fromFile ($name)
+=item table Data::Table::fromFile ($file_name, {linesChecked=>2})
 
 create a table from a text file.
 return a table object.
-$name: the file name (cannot take a file handler).
+$file_name: the file name (cannot take a file handler).
+linesChecked: the first number of lines used for guessing the input format. The delimiter will have to produce the same number of columns for these lines. By default only check the first 2 lines, 0 means all lines in the file.
 
 fromFile is added after version 1.51. It relies on the following new methods to automatically figure out the correct file format in order to call fromCSV or fromTSV internally:
 
-  fromFileGuessOS($name)
-  fromFileGetFirstLine($name, $os) # $os defaults to fromFileGuessOS($name), if not specified
-  fromFileIsHeader($s, $delimiter) # $delimiter defaults to $Data::Table::DEFAULTS{'CSV_DELIMITER'}
-  fromFileGuessDelimiter($s)       # guess delimiter from ",", "\t", ":";
+  fromFileGuessOS($file_name)
+    returns integer, 0 for UNIX, 1 for PC, 2 for MAC
+  fromFileGetTopLines($file_name, $os, $lineNumber) # $os defaults to fromFileGuessOS($file_name), if not specified
+    returns an array of strings, each string represents each row with linebreak removed.
+  fromFileGuessDelimiter($lineArrayRef)       # guess delimiter from ",", "\t", ":";
+    returns the guessed delimiter string.
+  fromFileIsHeader($line_concent, $delimiter) # $delimiter defaults to $Data::Table::DEFAULTS{'CSV_DELIMITER'}
+    returns 1 or 0.
 
-It first ask fromFileGuessOS to figure out which OS (UNIX, PC or MAC) generated the input file. The fetch the first line using fromFileGetFirstLine. If checks if the first line looks like a column header using fromFileIsHeader, guesses the best delimiter using fromFileGuessDelimiter.  Since fromFileGuessOS and fromFileGetFirstLine needs to open/close the input file, these methods can only take file name, not file handler.
+It first ask fromFileGuessOS to figure out which OS (UNIX, PC or MAC) generated the input file. The fetch the first linesChecked lines using fromFileGetTopLines. It then guesses the best delimiter using fromFileGuessDelimiter, then it checks if the first line looks like a column header row using fromFileIsHeader. Since fromFileGuessOS and fromFileGetTopLines needs to open/close the input file, these methods can only take file name, not file handler.
 
 fromFileGuessOS finds the linebreak that gives shortest first line (in the priority of UNIX, PC, MAC upon tie).
+fromFileGuessDelimiter works based on the assumption that the correct delimiter will produce equal number of columns for the given rows. If multiple matches, it chooses the delimiter that gives maximum number of columns. If none matches, it returns the default delimiter.
 fromFileIsHeader works based on the assumption that no column header can be empty or pure numeric value.
-fromFileGuessDelimiter works based on the assumption that the correct delimiter gives maximum number of columns.
 
 =item table Data::Table::fromSQL ($dbh, $sql, $vars)
 

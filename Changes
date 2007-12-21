@@ -1,14 +1,15 @@
 Revision history for Perl extension Table.
 
+1.52 Fri Dec 14 11:48:42 PST 2007
 1.51 Wed Dec 12 15:36:22 PST 2007
   1. Add a class methods Data::Table::fromFile(file_name), which can
   guess the file format and call fromCSV/fromTSV internally.
   
   fromFile relies on the following new methods
     fromFileGuessOS(file_name)
-    fromFileGetFirstLine($file_name, $OS)
+    fromFileGetTopLines($file_name, $OS, $lineNumber)
     fromFileIsHeader($string)
-    fromFileGuessDelimiter($string)
+    fromFileGuessDelimiter($arrayRefToLines)
   to figure out if the input file is from UNIX/PC/MAC, whether its first
   row contains column headers, and whether it uses ",", "\t" or ":" as
   field delimiters.
@@ -22,6 +23,9 @@ Revision history for Perl extension Table.
   an undef object, rather than quit.
 
   3. Provide more informative error message, when invalid column header is found.
+
+  4. fixed a bug in 1.51 where fromFileGuessOS failed in Windows
+  Thanks to patches provided by "whitebell".
 
 1.50 Thu Sep 28 07:21:38 PDT 2006
   Small modifications to sort subroutine example in the document, no bug.
