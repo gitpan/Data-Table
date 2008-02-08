@@ -9,7 +9,7 @@
 BEGIN { $| = 1; print "1..60\n"; }
 END {print "not ok 1\n" unless $loaded;}
 use Data::Table;
-use Data::Dumper;
+#use Data::Dumper;
 $loaded = 1;
 print "ok loaded\n";
 
@@ -396,8 +396,8 @@ if (join("", $t->col("PlateWell")) eq join("", @$Well)) {
   print "not ok 54 fromTSV custom operator\n";
 }
 
-$s="col_A:col_B:col_C\n1:2, 3 or 5:3.5\none:'one:two':'double\", single'''";
-open $fh, "<", \$s or die "Cannot open in-memory file\n";
+#open $fh, "<", \$s or die "Cannot open in-memory file\n";
+open($fh, "colon.csv") or die "Cannot open colon.csv to read\n";
 $t_fh=Data::Table::fromCSV($fh, 1, undef, {delimiter=>':', qualifier=>"'"});
 close($fh);
   # col_A,col_B,col_C

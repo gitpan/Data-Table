@@ -1,4 +1,8 @@
-Revision history for Perl extension Table.
+Revision history for Perl extension Data::Table.
+
+1.53 Thu Jan  3 21:13:40 PST 2008
+  add "use bytes" to Table.pm
+  Just patched test.pl, because some OS cannot open in-memory file.
 
 1.52 Fri Dec 14 11:48:42 PST 2007
 1.51 Wed Dec 12 15:36:22 PST 2007

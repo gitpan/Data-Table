@@ -4,6 +4,7 @@ BEGIN { die "Your perl version is old, see README for instructions" if $] < 5.00
 use strict;
 use vars qw($VERSION %DEFAULTS @ISA @EXPORT @EXPORT_OK);
 use Carp;
+use bytes;
 
 require Exporter;
 require AutoLoader;
@@ -15,7 +16,7 @@ require AutoLoader;
 @EXPORT = qw(
 	
 );
-$VERSION = '1.52';
+$VERSION = '1.53';
 %DEFAULTS = (
   "CSV_DELIMITER"=>',', # controls how to read/write CSV file
   "CSV_QUALIFIER"=>'"',
@@ -1497,8 +1498,8 @@ sub fromFileIsHeader {
   my ($s, $delimiter) = @_;
   $delimiter=$Data::Table::DEFAULTS{'CSV_DELIMITER'} unless defined($delimiter);
   return 0 if (!defined($s) || $s eq "" || $s=~ /$delimiter$/);
-  my @S=split(/$delimiter/, $s);
-  foreach my $name (@S) {
+  my $fields=parseCSV($s, 0, {delimiter=>$delimiter});
+  foreach my $name (@$fields) {
     return 0 unless $name;
     next if $name=~/[^0-9.eE\-+]/;
     return 0 if $name=~/^[-+]?[0-9]*\.?[0-9]+([eE][-+]?[0-9]+)?/;
@@ -2339,6 +2340,11 @@ Here is a summary (partially repeat) of some classic usages of Data::Table.
 
   Same for TSV
 
+=head2 Interface to Excel
+
+  Convert between an Excel file and tables
+  see Data::Table::Excel
+
 =head2 Interface to Graphics Package
 
   use GD::Graph::points;
@@ -2353,7 +2359,7 @@ Here is a summary (partially repeat) of some classic usages of Data::Table.
 
 =head1 AUTHOR
 
-Copyright 1998-2006, Yingyao Zhou & Guangzhou Zou. All rights reserved.
+Copyright 1998-2008, Yingyao Zhou & Guangzhou Zou. All rights reserved.
 
 It was first written by Zhou in 1998, significantly improved and maintained by Zou since 1999. The authors thank Tong Peng and Yongchuang Tao for valuable suggestions. We also thank those who kindly reported bugs, some of them are acknowledged in the "Changes" file.
 
@@ -2366,7 +2372,7 @@ Perl.
 
 =head1 SEE ALSO
 
-  DBI, GD::Graph.
+  Data::Table::Excel, DBI, GD::Graph.
 
 =cut
 
