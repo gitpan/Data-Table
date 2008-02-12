@@ -1,5 +1,9 @@
 Revision history for Perl extension Data::Table.
 
+1.54 Sun Feb 10 21:35:02 PST 2008
+  Modify fromFileGetTopLines method, remove dependency on bytes
+  bytes::substr causes infinite loop in some older version of perl
+
 1.53 Thu Jan  3 21:13:40 PST 2008
   add "use bytes" to Table.pm
   Just patched test.pl, because some OS cannot open in-memory file.

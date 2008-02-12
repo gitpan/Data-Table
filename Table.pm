@@ -4,7 +4,6 @@ BEGIN { die "Your perl version is old, see README for instructions" if $] < 5.00
 use strict;
 use vars qw($VERSION %DEFAULTS @ISA @EXPORT @EXPORT_OK);
 use Carp;
-use bytes;
 
 require Exporter;
 require AutoLoader;
@@ -16,7 +15,7 @@ require AutoLoader;
 @EXPORT = qw(
 	
 );
-$VERSION = '1.53';
+$VERSION = '1.54';
 %DEFAULTS = (
   "CSV_DELIMITER"=>',', # controls how to read/write CSV file
   "CSV_QUALIFIER"=>'"',
@@ -1484,10 +1483,12 @@ sub fromFileGetTopLines {
   open($SRC, $name) or confess "Cannot open $name to read";
   binmode $SRC;
   local($/)=$OS[$os];
+  my $n_endl = length($OS[$os]);
   my $cnt=0;
   while(<$SRC>) {
     $cnt++;
-    push @lines, bytes::substr($_, 0, -length($OS[$os]));
+    for (1..$n_endl) { chop; }
+    push @lines, $_;
     last if ($numLines>0 && $cnt>=$numLines);
   }
   close($SRC);

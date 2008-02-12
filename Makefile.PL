@@ -10,4 +10,7 @@ require 5.005;
 WriteMakefile(
     'NAME'	   => 'Data::Table',
     'VERSION_FROM' => 'Table.pm', # finds $VERSION
+    'PREREQ_PM'    => {
+                         bytes => 0
+                      }
 );
