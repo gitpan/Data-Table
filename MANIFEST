@@ -1,7 +1,8 @@
 Changes
+Data-Table-0.01.tar.gz
+lib/Data/Table.pm
 Makefile.PL
 MANIFEST
 README
 t/Data-Table.t
-lib/Data/Table.pm
 META.yml                                 Module meta-data (added by MakeMaker)

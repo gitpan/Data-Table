@@ -1,9 +1,9 @@
 --- #YAML:1.0
 name:               Data-Table
-version:            0.01
+version:            0.02
 abstract:           Perl extension for provide table like data structure.
 author:
-    - masato sogame <masato@nonet>
+    - Pocket <poketo7878@yahoo.co.jp>
 license:            unknown
 distribution_type:  module
 configure_requires:
