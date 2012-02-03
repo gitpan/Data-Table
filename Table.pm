@@ -16,7 +16,7 @@ require AutoLoader;
 @EXPORT = qw(
 	
 );
-$VERSION = '1.57';
+$VERSION = '1.58';
 %DEFAULTS = (
   "CSV_DELIMITER"=>',', # controls how to read/write CSV file
   "CSV_QUALIFIER"=>'"',
