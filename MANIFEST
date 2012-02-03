@@ -1,8 +1,18 @@
 Changes
-Data-Table-0.01.tar.gz
-lib/Data/Table.pm
 Makefile.PL
 MANIFEST
 README
-t/Data-Table.t
-META.yml                                 Module meta-data (added by MakeMaker)
+Table.pm
+test.pl
+aaa.csv
+aaa.tsv
+bbb.csv
+ccc.csv
+t_dos.csv
+t_dos2.csv
+t_unix.csv
+t_unix_noheader.csv
+t_mac.csv
+colon.csv
+ttt.tsv
+ttt.csv
