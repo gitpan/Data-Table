@@ -1,8 +1,17 @@
 Revision history for Perl extension Data::Table.
+1.59
+  I have never checked those CPAN ticket, happened to discover them and address them in this version.
+  Update document, explain Data::Table::fromCSV(\*STDIN, 1) can be used to read table from STDIN.
+  Add tbody and thead to Data::Table::html, if it's portrait.
+  Suggested by Ken Rosenberry.
+  Modify Data::Table::html and Data::Table::html2, so that it can accept coloring via CSS
+  The color now can be either specified as an array as before, or as three CSS class names
+  Suggested by Xavier Robin
+
 1.58 Thu Feb  2 20:33:03 PST 2012
   Patch join(), prior version of join considers two NULL keys to be equal
   update document, clarify that rowMerge assumes table columns in the same order
-  Thanks to Ulrik Stervbo
+  Thanks to Ulrik Stervbo.
 
 1.57 Thu Apr 23 15:22:36 PDT 2009
   Patch pivot(), it throws warning before, when colToFill is undef.

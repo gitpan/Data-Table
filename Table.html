@@ -317,7 +317,7 @@ It return a table object, equivalent to table::subTable(undef,undef).</p>
 <dd>
 <p>create a table from a CSV file.
 return a table object.
-$name_or_handler: the CSV file name or an already opened file handler. If a handler is used, it's not closed upon return.
+$name_or_handler: the CSV file name or an already opened file handler. If a handler is used, it's not closed upon return. To read from STDIN, use Data::Table::fromCSV(\*STDIN, 1).
 $includeHeader: 0 or 1 to ignore/interpret the first line in the file as column names,
 If it is set to 0, the array in $header is used. If $header is not supplied, the default column names are &quot;col1&quot;, &quot;col2&quot;, ...
 optional named argument OS specifies under which operating system the CSV file was generated. 0 for UNIX, 1 for PC and 2 for MAC. If not specified, $Data::Table::DEFAULTS{'OS'} is used, which defaults to UNIX. Basically linebreak is defined as &quot;\n&quot;, &quot;\r\n&quot; and &quot;\r&quot; for three systems, respectively.</p>
@@ -377,7 +377,7 @@ optional named argument OS specifies under which operating system the CSV file w
 <dd>
 <p>create a table from a TSV file.
 return a table object.
-$name: the TSV file name or an already opened file handler. If a handler is used, it's not closed upon return..
+$name: the TSV file name or an already opened file handler. If a handler is used, it's not closed upon return.  To read from STDIN, use Data::Table::fromTSV(\*STDIN, 1).
 $includeHeader: 0 or 1 to ignore/interpret the first line in the file as column names,
 If it is set to 0, the array in $header is used. If $header is not supplied, the default column names are &quot;col1&quot;, &quot;col2&quot;, ...
 optional named argument OS specifies under which operating system the TSV file was generated. 0 for UNIX, 1 for P
@@ -539,7 +539,7 @@ if 'file' is given, the tsv content will be written into it, besides returning t
 <p>Note: read &quot;TSV FORMAT&quot; section for details.</p>
 </dd>
 </li>
-<dt><strong><a name="html" class="item">string table::html ($colors = [&quot;#D4D4BF&quot;,&quot;#ECECE4&quot;,&quot;#CCCC99&quot;], 
+<dt><strong><a name="html" class="item">string table::html ($colorArrayRef_or_colorHashRef = [&quot;#D4D4BF&quot;,&quot;#ECECE4&quot;,&quot;#CCCC99&quot;], 
 			  $tag_tbl = {border =&gt; '1'},
                           $tag_tr  = {align =&gt; 'left'},
                           $tag_th  = {align =&gt; 'center'},
@@ -549,9 +549,11 @@ if 'file' is given, the tsv content will be written into it, besides returning t
 
 <dd>
 <p>return a string corresponding to a 'Portrait/Landscape'-style html-tagged table.
-$colors: a reference to an array of three color strings, used for backgrounds for table header, odd-row records, and even-row records, respectively. 
-A default color array (&quot;#D4D4BF&quot;,&quot;#ECECE4&quot;,&quot;#CCCC99&quot;)
-will be used if $colors isn't defined.</p>
+$colorArrayRef_or_colorHashRef: If a hash reference is provided, it will take three CSS class names for odd data rows, even data rows and for the header row.  The default hash is {even=&gt;&quot;data_table_even&quot;, odd=&gt;&quot;data_table_odd&quot;, header=&gt;&quot;data_table_header&quot;).
+If a hash reference is not found, a reference to an array of three color strings is expected to provided for backgrounds for even-row records, odd-row records, and -der row, respectively.  A default color array (&quot;#D4D4BF&quot;,&quot;#ECECE4&quot;,&quot;#CCCC99&quot;) will be used if $colors isn't defined.</p>
+</dd>
+<dd>
+<p>Before version 1.59, the parameter can only accept an array reference.</p>
 </dd>
 <dd>
 <p>$tag_tbl: a reference to a hash that specifies any legal attributes such as name, border,
@@ -572,7 +574,7 @@ The key of %$tag_td are either column names or column indices, the value is the 
 </dd>
 <dd>
 <p>$portrait controls the layout of the table. The default is 1, i.e., the table is shown in the
-&quot;Portrait&quot; style, like in Excel. 0 means &quot;Landscape&quot;.</p>
+&quot;Portrait&quot; style, like in Excel. 0 means &quot;Landscape&quot;. Since version 1.59, tbody and thead tags are added to the portrait mode output.</p>
 </dd>
 <dd>
 <p>Attention: You will have to escape HTML-Entities yourself (for example '&lt;' as '&amp;lt;'), if you have characters in you table which need to be escaped. You can do this for example with the escapeHTML-function from CGI.pm (or the HTML::Entities module).</p>

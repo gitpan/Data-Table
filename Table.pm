@@ -16,7 +16,7 @@ require AutoLoader;
 @EXPORT = qw(
 	
 );
-$VERSION = '1.58';
+$VERSION = '1.59';
 %DEFAULTS = (
   "CSV_DELIMITER"=>',', # controls how to read/write CSV file
   "CSV_QUALIFIER"=>'"',
@@ -208,23 +208,33 @@ sub tsv {
 
 # output table in HTML format
 sub html {
-  my ($self, $colors, $tag_tbl, $tag_tr, $tag_th, $tag_td, $portrait) = @_;
+  my ($self, $colorArrayRef_or_classHashRef, $tag_tbl, $tag_tr, $tag_th, $tag_td, $portrait) = @_;
   my ($s, $s_tr, $s_td, $s_th) = ("", "tr", "", "th");
   my $key;
-  $tag_tbl = { border => 1 } unless (ref $tag_tbl eq 'HASH');
+  $tag_tbl = { class => "data_table" } unless (ref $tag_tbl eq 'HASH');
   $tag_tr = {} unless (ref $tag_tr eq 'HASH');
   $tag_th = {} unless (ref $tag_th eq 'HASH');
   $tag_td = {} unless (ref $tag_td eq 'HASH');
   $portrait = 1 unless defined($portrait);
 
-  $s = "<table ";
+  $s = "<table";
   foreach $key (keys %$tag_tbl) {
     $s .= " $key=\"$tag_tbl->{$key}\"";
   }
   $s .= ">\n";
+  $s .= "<thead>\n" if ($portrait);
   my $header=$self->{header};
+  my $l_colorByClass = 0;
   my @BG_COLOR=("#D4D4BF","#ECECE4","#CCCC99");
-  @BG_COLOR=@$colors if ((ref($colors) eq "ARRAY") && (scalar @$colors==3));
+  my @CELL_CLASSES=("data_table_odd","data_table_even","data_table_header");
+  if (ref($colorArrayRef_or_classHashRef) eq "HASH") {
+    $l_colorByClass = 1;
+    $CELL_CLASSES[1]=$colorArrayRef_or_classHashRef->{even} if defined($colorArrayRef_or_classHashRef->{even});
+    $CELL_CLASSES[0]=$colorArrayRef_or_classHashRef->{odd} if defined($colorArrayRef_or_classHashRef->{odd});
+    $CELL_CLASSES[2]=$colorArrayRef_or_classHashRef->{header} if defined($colorArrayRef_or_classHashRef->{header});
+  } elsif ((ref($colorArrayRef_or_classHashRef) eq "ARRAY") && (scalar @$colorArrayRef_or_classHashRef==3)) {
+    @BG_COLOR=@$colorArrayRef_or_classHashRef;
+  }
   foreach $key (keys %$tag_tr) {
     $s_tr .= " $key=\"$tag_tr->{$key}\"";
   }
@@ -232,12 +242,14 @@ sub html {
     $s_th .= " $key=\"$tag_th->{$key}\"";
   }
   if ($portrait) {
-    $s .= "<$s_tr bgcolor=\"" . $BG_COLOR[2] . "\"><$s_th>" .
+    $s .= "<$s_tr ".($l_colorByClass? ("class=\"".$CELL_CLASSES[2]."\""):("bgcolor=\"".$BG_COLOR[2]."\""))."><$s_th>".
       join("</th><$s_th>", @$header) . "</th></tr>\n";
+    $s .= "</thead>\n";
     $self->rotate() if $self->{type};
     my $data=$self->{data};
+    $s .= "<tbody>\n";
     for (my $i=0; $i<=$#{$data}; $i++) {
-      $s .= "<$s_tr bgcolor=\"" . $BG_COLOR[$i%2] . "\">";
+      $s .= "<$s_tr ".($l_colorByClass? ("class=\"".$CELL_CLASSES[$i%2]."\""):("bgcolor=\"".$BG_COLOR[$i%2]."\"")).">";
       for (my $j=0; $j<=$#{$header}; $j++) {
         my $s_td = $tag_td->{$j} || $tag_td->{$header->[$j]};
         $s .= defined($s_td)? "<td $s_td>":"<td>";
@@ -246,16 +258,17 @@ sub html {
       }
       $s .= "</tr>\n";
     }
+    $s .= "</tbody>\n";
   } else {
     $self->rotate() unless $self->{type};
     my $data=$self->{data};
     for (my $i = 0; $i <= $#{$header}; $i++) {
-      $s .= "<$s_tr><$s_th bgcolor=\"" . $BG_COLOR[2] . "\">" .
+      $s .= "<$s_tr><$s_th ".($l_colorByClass? ("class=\"".$CELL_CLASSES[2]."\""):("bgcolor=\"".$BG_COLOR[2]."\"")).">".
             $header->[$i] . "</th>";
       my $s_td = $tag_td->{$i} || $tag_td->{$header->[$i]};
       for (my $j=0; $j<=$#{$data->[0]}; $j++) {
         $s .= defined($s_td)? "<td $s_td":"<td";
-        $s .= " bgcolor=\"" . $BG_COLOR[$j%2] . "\">";
+        $s .= ($l_colorByClass?(" class=\"".$CELL_CLASSES[$j%2]."\""):(" bgcolor=\"".$BG_COLOR[$j%2]."\"")).">";
         $s .= (defined($data->[$i][$j]) && $data->[$i][$j] ne '')?$data->[$i][$j]:'&nbsp;';
         $s .= "</td>";
       }
@@ -270,8 +283,8 @@ sub html {
 # so that each HTML table row is a column in the table
 # This is useful for a slim table (few columns but many rows)
 sub html2 {
-  my ($self, $colors, $tag_tbl, $tag_tr, $tag_th, $tag_td) = @_;
-  return $self->html($colors, $tag_tbl, $tag_tr, $tag_th, $tag_td, 0);
+  my ($self, $colorArrayRef_or_classHashRef, $tag_tbl, $tag_tr, $tag_th, $tag_td) = @_;
+  return $self->html($colorArrayRef_or_classHashRef, $tag_tbl, $tag_tr, $tag_th, $tag_td, 0);
 }
 
 # apply a $fun to each elm in a col 
@@ -1914,7 +1927,7 @@ It return a table object, equivalent to table::subTable(undef,undef).
 
 create a table from a CSV file.
 return a table object.
-$name_or_handler: the CSV file name or an already opened file handler. If a handler is used, it's not closed upon return.
+$name_or_handler: the CSV file name or an already opened file handler. If a handler is used, it's not closed upon return. To read from STDIN, use Data::Table::fromCSV(\*STDIN, 1).
 $includeHeader: 0 or 1 to ignore/interpret the first line in the file as column names,
 If it is set to 0, the array in $header is used. If $header is not supplied, the default column names are "col1", "col2", ...
 optional named argument OS specifies under which operating system the CSV file was generated. 0 for UNIX, 1 for PC and 2 for MAC. If not specified, $Data::Table::DEFAULTS{'OS'} is used, which defaults to UNIX. Basically linebreak is defined as "\n", "\r\n" and "\r" for three systems, respectively.
@@ -1958,7 +1971,7 @@ Same as Data::Table::fromCSV. However, this is an instant method (that's what 'i
 
 create a table from a TSV file.
 return a table object.
-$name: the TSV file name or an already opened file handler. If a handler is used, it's not closed upon return..
+$name: the TSV file name or an already opened file handler. If a handler is used, it's not closed upon return.  To read from STDIN, use Data::Table::fromTSV(\*STDIN, 1).
 $includeHeader: 0 or 1 to ignore/interpret the first line in the file as column names,
 If it is set to 0, the array in $header is used. If $header is not supplied, the default column names are "col1", "col2", ...
 optional named argument OS specifies under which operating system the TSV file was generated. 0 for UNIX, 1 for P
@@ -2084,7 +2097,7 @@ if 'file' is given, the tsv content will be written into it, besides returning t
 
 Note: read "TSV FORMAT" section for details.
 
-=item string table::html ($colors = ["#D4D4BF","#ECECE4","#CCCC99"], 
+=item string table::html ($colorArrayRef_or_colorHashRef = ["#D4D4BF","#ECECE4","#CCCC99"], 
 			  $tag_tbl = {border => '1'},
                           $tag_tr  = {align => 'left'},
                           $tag_th  = {align => 'center'},
@@ -2093,9 +2106,10 @@ Note: read "TSV FORMAT" section for details.
                         )
 
 return a string corresponding to a 'Portrait/Landscape'-style html-tagged table.
-$colors: a reference to an array of three color strings, used for backgrounds for table header, odd-row records, and even-row records, respectively. 
-A default color array ("#D4D4BF","#ECECE4","#CCCC99")
-will be used if $colors isn't defined. 
+$colorArrayRef_or_colorHashRef: If a hash reference is provided, it will take three CSS class names for odd data rows, even data rows and for the header row.  The default hash is {even=>"data_table_even", odd=>"data_table_odd", header=>"data_table_header").
+If a hash reference is not found, a reference to an array of three color strings is expected to provided for backgrounds for even-row records, odd-row records, and -der row, respectively.  A default color array ("#D4D4BF","#ECECE4","#CCCC99") will be used if $colors isn't defined. 
+
+Before version 1.59, the parameter can only accept an array reference. 
 
 $tag_tbl: a reference to a hash that specifies any legal attributes such as name, border,
 id, class, etc. for the TABLE tag.
@@ -2110,7 +2124,7 @@ Notice $tag_tr and $tag_th controls all the rows and columns of the whole table.
 The key of %$tag_td are either column names or column indices, the value is the full string to be inserted into the TD tag. E.g., $tag_td  = {col3 => 'align=right valign=bottom} only change the TD tag in "col3" to be &lt;TD align=right valign=bottom&gt;.
 
 $portrait controls the layout of the table. The default is 1, i.e., the table is shown in the
-"Portrait" style, like in Excel. 0 means "Landscape".
+"Portrait" style, like in Excel. 0 means "Landscape". Since version 1.59, tbody and thead tags are added to the portrait mode output.
 
 Attention: You will have to escape HTML-Entities yourself (for example '<' as '&lt;'), if you have characters in you table which need to be escaped. You can do this for example with the escapeHTML-function from CGI.pm (or the HTML::Entities module).
 
