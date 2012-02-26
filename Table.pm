@@ -16,7 +16,7 @@ require AutoLoader;
 @EXPORT = qw(
 	
 );
-$VERSION = '1.59';
+$VERSION = '1.60';
 %DEFAULTS = (
   "CSV_DELIMITER"=>',', # controls how to read/write CSV file
   "CSV_QUALIFIER"=>'"',
@@ -313,19 +313,31 @@ sub addRow {
   my ($self, $rowRef, $rowIdx) = @_;
   my $numRow=$self->nofRow();
   my @t;
-  confess "addRow: size of added row does not match those in the table\n"
-	if scalar @$rowRef != $self->nofCol();
+  my $myRowRef = $rowRef;
+  if (ref $myRowRef eq 'HASH') {
+    my @one = ();
+    my @header = $self->header;
+    for (my $i=0; $i< scalar @header; $i++) {
+      $one[$i] = $myRowRef->{$header[$i]};
+    }
+    $myRowRef = \@one;
+  } elsif (ref $myRowRef eq 'ARRAY') {
+    confess "addRow: size of added row does not match those in the table\n"
+	if scalar @$myRowRef != $self->nofCol();
+  } else {
+    confess "addRow: parameter rowRef has to be either an array_ref or a hash_ref\n";
+  }
   $rowIdx=$numRow unless defined($rowIdx);
   return undef unless defined $self->checkNewRow($rowIdx);
   $self->rotate() if $self->{type};
   my $data=$self->{data};
   if ($rowIdx == 0) {
-    unshift @$data, $rowRef;
+    unshift @$data, $myRowRef;
   } elsif ($rowIdx == $numRow) {
-    push @$data, $rowRef;
+    push @$data, $myRowRef;
    } else {
     @t = splice @$data, $rowIdx;
-    push @$data, $rowRef, @t;
+    push @$data, $myRowRef, @t;
   }
   return 1;
 }
@@ -2155,8 +2167,8 @@ It returns 1 upon success, undef otherwise.
 
 =item int table::addRow ( $rowRef, $rowIdx = table::nofRow)
 
-add a new row ($rowRef points to the actual list of scalars), the new row will be referred as $rowIdx as the result. E.g., addRow($aRow, 0) will put the new row as the very first row.
-By default, it appends a row to the end.
+add a new row ($rowRef may point to the actual list of scalars, or it can be a hash_ref (supported since version 1.60)).  If $rowRef points to a hash, the method will lookup the value of a field by ts column name: $rowRef->{colName}, if not found, undef is used for that field.
+The new row will be referred as $rowIdx as the result. E.g., addRow($aRow, 0) will put the new row as the very first row. By default, it appends a row to the end.
 It returns 1 upon success, undef otherwise.
 
 =item refto_array table::delRow ( $rowIdx )

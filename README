@@ -7,7 +7,8 @@ See COPYRIGHT section in Table.pm for usage and distribution rights.
 The Table.pm file contains the documentation.
 You can obtained the most recent version from
  
-http://www.geocities.com/easydatabase/
+#http://www.geocities.com/easydatabase/
+# this URL is obsolete, please use CPAN URL
 
 See also http://www.perl.com/CPAN/
 

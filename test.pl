@@ -454,6 +454,12 @@ if ($t->html({odd=>'myOdd', even=>'myEven', header=>'myHeader'})) {
   print "not ok 60 using html with CSS\n";
 }
 
+my %myRow=(COL_B=>'xyz');
+if ($t->addRow(\%myRow, 1) && $t->nofRow==3 && equal($t->rowRef(1), [undef, 'xyz'])) {
+  print "ok 61 addRow() with hash_ref\n";
+} else {
+  print "not ok 61 addRow() with hash_ref\n";
+}
 # use DBI;
 # $dbh= DBI->connect("DBI:mysql:test", "test", "") or die $dbh->errstr;
 # $t = Data::Table::fromSQL($dbh, "show tables");
@@ -470,15 +476,15 @@ package main;
 
 $foo=FOO->new([[11,12],[21,22],[31,32]],['header1','header2'],0);
 if ($foo->csv) {
-  print "ok 61 Inheritance\n";
+  print "ok 62 Inheritance\n";
 } else {
-  print "not ok 61 Inheritance\n";
+  print "not ok 62 Inheritance\n";
 }
 $foo = FOO->fromCSVi("aaa.csv");
 if ($foo->csv) {
-  print "ok 62 inheritated instant method fromCSVi\n";
+  print "ok 63 inheritated instant method fromCSVi\n";
 } else {
-  print "not ok 62 inheritated instant method fromCSVi\n";
+  print "not ok 63 inheritated instant method fromCSVi\n";
 }
 
 sub equal {
