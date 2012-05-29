@@ -14,9 +14,8 @@ require AutoLoader;
 # names by default without a very good reason. Use EXPORT_OK instead.
 # Do not simply export all your public functions/methods/constants.
 @EXPORT = qw(
-	
 );
-$VERSION = '1.60';
+$VERSION = '1.62';
 %DEFAULTS = (
   "CSV_DELIMITER"=>',', # controls how to read/write CSV file
   "CSV_QUALIFIER"=>'"',
@@ -29,7 +28,14 @@ $VERSION = '1.60';
               "'"=>"'", '"'=>"\"", '\\'=>"\\" );
 %Data::Table::TSV_ENC = ( "\0"=>'0', "\n"=>'n', "\t"=>'t', "\r"=>'r', "\b"=>'b',
               "'"=>"'", "\""=>'"', "\\"=>'\\' );
- 
+use constant NUMBER => 0;
+use constant STRING => 1;
+use constant ASC => 0;
+use constant DESC => 1;
+use constant INNER_JOIN => 0;
+use constant LEFT_JOIN => 1;
+use constant RIGHT_JOIN => 2;
+use constant FULL_JOIN => 3;
 
 sub new {
   my ($pkg, $data, $header, $type, $enforceCheck) = @_;
@@ -50,7 +56,7 @@ sub new {
   } elsif (scalar @$data == 0) {
     $type = 0;
   }
-  my $self={ data=>$data, header=>$header, type=>$type, colHash=>$colHash};
+  my $self={ data=>$data, header=>$header, type=>$type, colHash=>$colHash, OK=>[]};
   return bless $self, $class;
 }
 
@@ -792,8 +798,38 @@ sub match_pattern {
   my $cnt=0;
   $self->rotate() if $self->{type};
   @Data::Table::OK= eval "map { $pattern?1:0; } \@{\$self->{data}};";
+  my @ok = @Data::Table::OK;
+	$self->{OK} = \@ok;
   for (my $i=0; $i<$self->nofRow(); $i++) {
-    if ($Data::Table::OK[$i]) {
+    if ($self->{OK}->[$i]) {
+      push @data, $self->{data}->[$i] unless $countOnly;
+      $cnt++;
+    }
+  }
+  return $cnt if $countOnly;
+  my @header=@{$self->{header}};
+  return new Data::Table(\@data, \@header, 0);
+}
+
+# return rows as sub table in which
+# a pattern $pattern is matched
+# each row is passed to the patern as a hash, where column names are keys
+sub match_pattern_hash {
+  my ($self, $pattern, $countOnly) = @_;
+  my @data=();
+  $countOnly=0 unless defined($countOnly);
+  my $cnt=0;
+  $self->rotate() if $self->{type};
+  @Data::Table::OK = ();
+  for (my $i=0; $i<$self->nofRow(); $i++) {
+    local %_ = %{$self->rowHashRef($i)};
+    $Data::Table::OK[$i] = eval "$pattern?1:0";
+  }
+  #@Data::Table::OK= eval "map { $pattern?1:0; } \@{\$self->{data}};";
+  my @ok = @Data::Table::OK;
+  $self->{OK} = \@ok;
+  for (my $i=0; $i<$self->nofRow(); $i++) {
+    if ($self->{OK}->[$i]) {
       push @data, $self->{data}->[$i] unless $countOnly;
       $cnt++;
     }
@@ -813,6 +849,7 @@ sub match_string {
   my $r;
   $self->rotate() if $self->{type};
   @Data::Table::OK=();
+  $self->{OK} = [];
   $caseIgn=0 unless defined($caseIgn);
 
   ### comment out next line if your perl version < 5.005 ###
@@ -821,19 +858,21 @@ sub match_string {
 
   foreach my $row_ref (@{$self->data}) {
     push @Data::Table::OK, undef;
+    push @{$self->{OK}}, undef;
     foreach my $elm (@$row_ref) {
-        next unless defined($elm);
+      next unless defined($elm);
         
         ### comment out the next line if your perl version < 5.005
-        if ($elm =~ /$r/) {
+      if ($elm =~ /$r/) {
         ### uncomment the next line if your perl version < 5.005
 	# if ($elm =~ /$s/ || ($elm=~ /$s/i && $caseIgn)) {
 
-		push @data, $row_ref unless $countOnly;
-		$Data::Table::OK[$#Data::Table::OK]=1;
-                $cnt++;
-		last;
-   	}
+        push @data, $row_ref unless $countOnly;
+        $Data::Table::OK[$#Data::Table::OK]=1;
+        $self->{OK}->[$#{$self->{OK}}]=1;
+        $cnt++;
+        last;
+      }
     }
   }
   return $cnt if $countOnly;
@@ -860,31 +899,102 @@ sub rowMask {
 }
 
 sub rowMerge {
-  my ($self, $tbl) = @_;
-  confess "Tables must have the same number of columns" unless ($self->nofCol()==$tbl->nofCol());
+  my ($self, $tbl, $arg_ref) = @_;
+  my %arg = defined $arg_ref ? %$arg_ref : ();
+  $arg{byName} =0 unless exists $arg{byName};
+  $arg{addNewCol} = 0 unless exists $arg{addNewCol};
+  if ($arg{byName} == 0 && $arg{addNewCol} == 0) {
+    confess "Tables must have the same number of columns" unless ($self->nofCol()==$tbl->nofCol());
+  } else {
+    if ($arg{addNewCol}) {
+      unless ($arg{byName}) { # add extra column by index
+        if ($self->nofCol < $tbl->nofCol) {
+          my @header = $tbl->header;
+          my $nCols = $self->nofCol();
+          my $nRows = $self->nofRow();
+          for (my $i = $nCols; $i<@header; $i++) {
+            my @one = (undef) x $nRows;
+            $self->addCol(\@one, $header[$i]);
+          }
+        } elsif ($self->nofCol > $tbl->nofCol) {
+          my @header = $self->header;
+          my %h = ();
+          my @header2 = $tbl->header;
+          map {$h{$_} = 1} @header2;
+          my $nCols = $tbl->nofCol();
+          my $nRows = $tbl->nofRow();
+          for (my $i = $nCols; $i<$self->nofCol; $i++) {
+            my @one = (undef) x $nRows;
+            # make sure new col name is unique
+            my $s = $header[$i];
+            my $cnt = 2;
+            while (exists $h{$s}) {
+              $s = $header[$i]."_".$cnt ++;
+            }
+            $tbl->addCol(\@one, $s);
+            $h{$s} = 1;
+          }
+        }
+      } else {
+        my @header = $tbl->header;
+        my $nRows = $self->nofRow();
+        foreach my $col (@header) {
+          if ($self->colIndex($col) < 0) {
+            my @one = (undef) x $nRows;
+            $self->addCol(\@one, $col);
+          }
+        }
+      }
+    }
+  }
   $self->rotate() if $self->{type};
   $tbl->rotate() if $tbl->{type};
   my $data=$self->{data};
-#  for ($i=0; $i<$tbl->nofRow(); $i++) {
-  push @$data, @{$tbl->{data}};
-#  }
+  if ($arg{byName} == 0) {
+    push @$data, @{$tbl->{data}};
+  } else {
+    my @header = $self->header;
+    my $nCols = scalar @header;
+    my @colIndex = map { $tbl->colIndex($_) } @header;
+    foreach my $rowRef (@{$tbl->{data}}) {
+      my @one = ();
+      for (my $j=0; $j< $nCols; $j++) {
+        $one[$j] = $colIndex[$j]>=0 ? $rowRef->[$colIndex[$j]]:undef;
+      }
+      push @$data, \@one;
+    }
+  }
   return 1;
 }
 
 sub colMerge {
-  my ($self, $tbl) = @_;
+  my ($self, $tbl, $arg_ref) = @_;
+  my %arg = defined $arg_ref ? %$arg_ref : ();
+  $arg{renameCol} =0 unless exists $arg{renameCol};
   confess "Tables must have the same number of rows" unless ($self->nofRow()==$tbl->nofRow());
   my $col;
+  my %h = ();
+	map {$h{$_} = 1} @{$self->{header}};
+  my @header2 = ();
   foreach $col ($tbl->header) {
-    confess "Duplicate column $col in two tables" if defined($self->{colHash}->{$col});
-  }
-  my $i = $self->nofCol();
-  foreach $col ($tbl->header) {
-    push @{$self->{header}}, $col;
-    $self->{colHash}->{$col} = $i++; 
+    my $s = $col;
+    if (exists $h{$s}) {
+      confess "Duplicate column $col in two tables" unless $arg{renameCol};
+      my $cnt = 2;
+      while (exists $h{$s}) {
+        $s = $col ."_". $cnt++;
+      }
+    }
+    $h{$s} = 1;
+    push @header2, $s;
   }
   $self->rotate() unless $self->{type};
   $tbl->rotate() unless $tbl->{type};
+  my $i = $self->nofCol();
+  for my $s (@header2) {
+    push @{$self->{header}}, $s;
+    $self->{colHash}->{$s} = $i++;
+  }
   my $data=$self->{data};
   for ($i=0; $i<$tbl->nofCol(); $i++) {
     push @$data, $tbl->{data}->[$i];
@@ -896,28 +1006,31 @@ sub subTable {
   my ($self, $rowIdcsRef, $colIDsRef) = @_;
   my @newdata=();
   my @newheader=();
-  $rowIdcsRef = [0..($self->nofRow()-1)] unless defined $rowIdcsRef;
-  $colIDsRef = [0..($self->nofCol()-1)] unless defined $colIDsRef; 
-  for (my $i = 0; $i < scalar @{$colIDsRef}; $i++) {
-    $colIDsRef->[$i]=$self->checkOldCol($colIDsRef->[$i]);
-    return undef unless defined $colIDsRef;
-    push @newheader, $self->{header}->[$colIDsRef->[$i]];
+  # to avoid the side effect of modifying $colIDsRef, 4/30/2012
+  my @rowIdcs = defined $rowIdcsRef ? @$rowIdcsRef : 0..($self->nofRow()-1);
+  my @colIDs = defined $colIDsRef ? @$colIDsRef : 0..($self->nofCol()-1);
+  ##$rowIdcsRef = [0..($self->nofRow()-1)] unless defined $rowIdcsRef;
+  #$colIDsRef = [0..($self->nofCol()-1)] unless defined $colIDsRef; 
+  for (my $i = 0; $i < scalar @colIDs; $i++) {
+    $colIDs[$i]=$self->checkOldCol($colIDs[$i]);
+    #return undef unless defined $colIDsRef;
+    push @newheader, $self->{header}->[$colIDs[$i]];
   }
   if ($self->{type}) {
-    for (my $i = 0; $i < scalar @{$colIDsRef}; $i++) {
+    for (my $i = 0; $i < scalar @colIDs; $i++) {
       my @one=();
-      for (my $j = 0; $j < scalar @{$rowIdcsRef}; $j++) {
-	return undef unless defined $self->checkOldRow($rowIdcsRef->[$j]);
-        push @one, $self->{data}->[$colIDsRef->[$i]]->[$rowIdcsRef->[$j]];
+      for (my $j = 0; $j < scalar @rowIdcs; $j++) {
+	return undef unless defined $self->checkOldRow($rowIdcs[$j]);
+        push @one, $self->{data}->[$colIDs[$i]]->[$rowIdcs[$j]];
       }
       push @newdata, \@one;
     }
   } else {
-    for (my $i = 0; $i < scalar @{$rowIdcsRef}; $i++) {
-      return undef unless defined $self->checkOldRow($rowIdcsRef->[$i]);	
+    for (my $i = 0; $i < scalar @rowIdcs; $i++) {
+      return undef unless defined $self->checkOldRow($rowIdcs[$i]);	
       my @one=();
-      for (my $j = 0; $j < scalar @{$colIDsRef}; $j++) {
-        push @one, $self->{data}->[$rowIdcsRef->[$i]]->[$colIDsRef->[$j]];
+      for (my $j = 0; $j < scalar @colIDs; $j++) {
+        push @one, $self->{data}->[$rowIdcs[$i]]->[$colIDs[$j]];
       }
       push @newdata, \@one;
     }
@@ -1207,7 +1320,11 @@ sub fromSQLi {
 sub fromSQL {
   my ($dbh, $sql, $vars) = @_;
   my ($sth, $header, $t);
-  $sth = $dbh->prepare($sql) or confess "Preparing: , ".$dbh->errstr;
+  if (ref $sql eq 'DBI::st') {
+    $sth = $sql;
+  } else {
+    $sth = $dbh->prepare($sql) or confess "Preparing: , ".$dbh->errstr;
+  }
   my @vars=() unless defined $vars;
   $sth->execute(@$vars) or confess "Executing: ".$dbh->errstr;
 #  $Data::Table::ID = undef;
@@ -1223,8 +1340,10 @@ sub fromSQL {
 }
 
 sub join {
-  my ($self, $tbl, $type, $cols1, $cols2) = @_;
+  my ($self, $tbl, $type, $cols1, $cols2, $arg_ref) = @_;
   my $n1 = scalar @$cols1;
+  my %arg= ( renameCol => 0);
+  %arg = %$arg_ref if defined $arg_ref;
   # default cols2 to cols1 if not specified
   if (!defined($cols2) && $n1>0) {
     $cols2 = [];
@@ -1343,6 +1462,19 @@ sub join {
         my @row2 = $tbl->row($rows2->[$j]);
         push @ones, [$self->row($rows1->[$i]), @row2[@cols4]];
       }
+    }
+  }
+  if ($arg{renameCol}) {
+    my %h = ();
+    map {$h{$_} = 1} @{$self->{header}};
+    for (my $i=0; $i<@header2; $i++) {
+      my $s = $header2[$i];
+      my $cnt = 2;
+      while (exists $h{$s}) {
+        $s = $header2[$i] ."_". $cnt++;
+      }
+      $header2[$i] = $s;
+      $h{$s} = 1;
     }
   }
   my $header = [@{$self->{header}}, @header2];
@@ -1746,6 +1878,8 @@ Data::Table - Data type related to database tables, spreadsheets, CSV/TSV files,
   $t2=$t->match_pattern('$_->[0] =~ /^L/ && $_->[3]<0.2'); 
 					# Select the rows that matched the 
 					# pattern specified 
+  $t2=$t->match_pattern_hash('$_{"Amino acid"} =~ /^L-a/ && $_{"Grams \"(a.a.)\""}<0.2'));
+          # use column name in the pattern, method added in 1.62
   $t2=$t->match_string('John');		# Select the rows that matches 'John'   
 					# in any column
 
@@ -1879,7 +2013,8 @@ contains all column names.
 
 =item @Data::Table::OK
 
-see table::match_string and table::match_pattern
+see table::match_string, table::match_pattern, and table::match_pattern_hash
+Since 1.62, we recommend you to use $table->{OK} instead, which is a local array reference.
 
 =item %Data::Table::DEFAULTS
 
@@ -1929,6 +2064,7 @@ $rowIdcsRef: points to an array of row indices.
 $colIDsRef: points to an array of column IDs.
 The function make a copy of selected elements from the original table. 
 Undefined $rowIdcsRef or $colIDsRef is interpreted as all rows or all columns.
+The elements in $colIDsRef may be modified as a side effect before version 1.62, fixed in 1.62.
 
 =item table table::clone
 
@@ -2034,11 +2170,18 @@ create a table from the result of an SQL selection query.
 It returns a table object upon success or undef otherwise.
 $dbh: a valid database handler. 
 Typically $dbh is obtained from DBI->connect, see "Interface to Database" or DBI.pm.
-$sql: an SQL query string.
+$sql: an SQL query string or a DBI::st object (starting in version 1.61).
 $vars: optional reference to an array of variable values, 
 required if $sql contains '?'s which need to be replaced 
 by the corresponding variable values upon execution, see DBI.pm for details.
 Hint: in MySQL, Data::Table::fromSQL($dbh, 'show tables from test') will also create a valid table object.
+
+Data::Table::fromSQL now can take DBI::st instead of a SQL string. This is introduced, so that variable binding (such as CLOB/BLOB) can be done outside the method, for example:
+
+  $sql = 'insert into test_table (id, blob_data) values (1, :val)';
+  $sth = $dbh->prepare($sql);
+  $sth->bind_param(':val', $blob, {ora_type => SQLT_BIN});
+  Data::Table::fromSQL($dbh, $sth);
 
 =item table Data::Table::fromSQLi ($dbh, $sql, $vars)
 
@@ -2268,6 +2411,13 @@ sort a table in place.
 First sort by column $colID1 in $order1 as $type1, then sort by $colID2 in $order2 as $type2, ...
 $type is 0 for numerical and 1 for others;
 $order is 0 for ascending and 1 for descending;
+
+In 1.62, instead of memorize these numbers, you can use constants instead (notice constants do not start with '$').
+  Data::Table::NUMBER
+  Data::Table::STRING
+  Data::Table::ASC
+  Data::Table::DESC
+
 Sorting is done in the priority of colID1, colID2, ...
 It returns 1 upon success or undef otherwise. 
 Notice the table is rearranged as a result! This is different from perl's list sort, which returns a sorted copy while leave the original list untouched, 
@@ -2295,8 +2445,25 @@ table::sort can take a user supplied operator, this is useful when neither numer
 return a new table consisting those rows evaluated to be true by $pattern 
 upon success or undef otherwise. If $countOnly is set to 1, it simply returns the number of rows that matches the string without making a new copy of table. $countOnly is 0 by default.
 
-Side effect: @Data::Table::OK stores a true/false array for the original table rows. Using it, users can find out what are the rows being selected/unselected.
+Side effect: @Data::Table::OK (should use $t->{OK} after 1.62) stores a true/false array for the original table rows. Using it, users can find out what are the rows being selected/unselected.
 In the $pattern string, a column element should be referred as $_->[$colIndex]. E.g., match_pattern('$_->[0]>3 && $_->[1]=~/^L') retrieve all the rows where its first column is greater than 3 and second column starts with letter 'L'. Notice it only takes colIndex, column names are not acceptable here!
+
+=item table table::match_pattern_hash ($pattern, $countOnly)
+
+return a new table consisting those rows evaluated to be true by $pattern
+upon success or undef otherwise. If $countOnly is set to 1, it simply returns the number of rows that matches the string without making a new copy of table. $countOnly is 0 by default.
+
+Side effect: @Data::Table::OK stores a true/false array for the original table rows. Using it, users can find out what are the rows being selected/unselected.
+In the $pattern string, a column element should be referred as ${column_name}.
+match_pattern_hash() is added in 1.62. The difference between this method and match_pattern is each row is fed to the pattern as a hash %_.
+In the case of match_pattern, each row is fed as an array ref $_.  The pattern for match_pattern_hash() becomes much cleaner.
+
+If a table has two columns: Col_A as the 1st column and Col_B as the 2nd column, a filter "Col_A>2 AND Col_B<2" is written before as
+	$t->match_pattern('$_->[0] > 2 && $_->[1] <2');
+where we need to figure out $t->colIndex('Col_A') is 0 and $t->colIndex('Col_B') is 1, in order to build the pattern.
+Now you can use column name directly in the pattern:
+	$t->match_pattern_hash('$_{Col_A} >2 && $_{Col_B} <2');
+This method creates $t->{OK}, as well as @Data::Table::OK, same as match_pattern().
 
 =item table table::match_string ($s, $caseIgnore, $countOnly)
 
@@ -2354,15 +2521,17 @@ This creates a 2x3 table, where Departments are use as row keys, Sex (female and
 
 =over 4
 
-=item int table::rowMerge ($tbl)
+=item int table::rowMerge ($tbl, $argRef)
 
 Append all the rows in the table object $tbl to the original rows.
-The merging table $tbl must have the same number of columns as the original, as well as the columns are in exactly the same order.
+Before 1.62, the merging table $tbl must have the same number of columns as the original, as well as the columns are in exactly the same order.
 It returns 1 upon success, undef otherwise.
 The table object $tbl should not be used afterwards, since it becomes part of
 the new table.
 
-=item int table::colMerge ($tbl)
+Since 1.62, you may provide {byName =>1, addNewCol=>1} as $argRef.  If byName is set to 1, the columns in in $tbl do not need to be in the same order as they are in the first table, instead the column name is used for the matching.  If addNewCol is set to 1, if $tbl contains a new column name that does not already exist in the first table, this new column will be automatically added to the resultant table.  Typically, you want to specify there two options simultaneously.
+
+=item int table::colMerge ($tbl, $argRef)
 
 Append all the columns in table object $tbl to the original columns. 
 Table $tbl must have the same number of rows as the original.
@@ -2370,7 +2539,9 @@ It returns 1 upon success, undef otherwise.
 Table $tbl should not be used afterwards, since it becomes part of
 the new table.
 
-=item table table::join ($tbl, $type, $cols1, $cols2)
+Since 1.62, you can specify {renameCol => 1} as $argRef. This is to auto fix any column name collision.  If $tbl contains a column that already exists in the first table, it will be renamed (by a suffix _2) to avoid the collision.
+
+=item table table::join ($tbl, $type, $cols1, $cols2, $argRef)
 
 Join two tables. The following join types are supported (defined by $type):
 
@@ -2379,9 +2550,17 @@ Join two tables. The following join types are supported (defined by $type):
 2: right outer join
 3: full outer join
 
+In 1.62, instead of memorize these numbers, you can use constants instead (notice constants do not start with '$').
+  Data::Table::INNER_JOIN
+  Data::Table::LEFT_JOIN
+  Data::Table::RIGHT_JOIN
+  Data::Table::FULL_JOIN
+
 $cols1 and $cols2 are references to array of colIDs, where rows with the same elements in all listed columns are merged. As the result table, columns listed in $cols2 are deleted, before a new table is returned.
 
 The implementation is hash-join, the running time should be linear with respect to the sum of number of rows in the two tables (assume both tables fit in memory).
+
+If the non-key columns of the two tables share the same name, the routine will fail, as the result table cannot contain two columns of the same name.  In 1.62, one can specify {renameCol=>1} as $argRef, so that the second column will be automatically renamed (with suffix _2) to avoid collision.
 
 =back
 

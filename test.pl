@@ -9,6 +9,7 @@
 BEGIN { $| = 1; print "1..62\n"; }
 END {print "not ok 1\n" unless $loaded;}
 use Data::Table;
+use Data::Dumper;
 #use Data::Dumper;
 $loaded = 1;
 print "ok loaded\n";
@@ -182,7 +183,6 @@ if ($t->sort('Ref No.',1,1,'Temp, C',1,0)) {
 if (($t2=$t->match_pattern('$_->[0] =~ /^L-a/ && $_->[3]<0.2')) && $t2->nofRow()==2) {
   print "ok 31 match_pattern()\n";
 } else {
-print $t2->csv;
   print "not ok 31 match_pattern()\n";
 }
 if (($t2=$t->match_string('allo|cine')) && $t2->nofRow()==4) {
@@ -224,7 +224,7 @@ if ($t->colMerge($t2) && $t->nofCol()==7) {
   print "not ok 38 colMerge()\n";
 }
 $t->delCol('new column');
-$t->sort('Entry',1,0);
+$t->sort('Entry',Data::Table::STRING,Data::Table::ASC);
 $t2 = Data::Table::fromTSV("aaa.tsv");
 if ($t->tsv eq $t2->tsv) {
   print "ok 39 fromTSV and tsv\n";
@@ -460,6 +460,57 @@ if ($t->addRow(\%myRow, 1) && $t->nofRow==3 && equal($t->rowRef(1), [undef, 'xyz
 } else {
   print "not ok 61 addRow() with hash_ref\n";
 }
+
+$t2 = $t->clone();
+map {$t2->rename($_, $_."2")} $t2->header;
+$t->rowMerge($t2, {byName => 1});
+if ($t->nofRow == $t2->nofRow*2 && $t->nofCol == $t2->nofCol) {
+  print "ok 62 rowMerge() with byName=1\n";
+} else {
+  print "not ok 62 rowMerge() with byName=1\n";
+}
+
+$t->rowMerge($t2, {byName => 1, addNewCol => 1});
+if ($t->nofRow == $t2->nofRow*3 && $t->nofCol == $t2->nofCol*2) {
+  print "ok 63 rowMerge() with byName=1 and addNewCol=1\n";
+} else {
+  print "not ok 63 rowMerge() with byName=1 and addNewCol=1\n";
+}
+
+$t2->rename(0, 'COL_A');
+$t2->rename(1, 'COL_B');
+$t->rowMerge($t2, {byName => 0, addNewCol => 1});
+if ($t->nofRow == $t2->nofRow*4 && $t->nofCol == $t2->nofCol) {
+  print "ok 64 rowMerge() with byName=0 and addNewCol=1\n";
+} else {
+  print "not ok 64 rowMerge() with byName=0 and addNewCol=1\n";
+}
+
+$t=Data::Table::fromCSV("aaa.csv", 1);
+$t2=$t->clone();
+$t = $t->join($t2, 0, ['Amino acid'], ['Amino acid'], {renameCol => 1});
+if ($t->nofRow == $t2->nofRow && $t->nofCol == $t2->nofCol*2-1) {
+  print "ok 65 join() with auto renaming duplicate column names\n";
+} else {
+  print "not ok 65 join() with auto renaming duplicate column names\n";
+}
+
+$t=Data::Table::fromCSV("aaa.csv", 1);
+$t2=$t->clone();
+$t->colMerge($t2, {renameCol => 1});
+if ($t->nofCol == $t2->nofCol*2) {
+  print "ok 66 colMerge() with auto renaming duplicate column names\n";
+} else {
+  print "not ok 66 colMerge() with auto renaming duplicate column names\n";
+}
+
+$t=Data::Table::fromCSV("aaa.csv", 1);
+if (($t2=$t->match_pattern_hash('$_{"Amino acid"} =~ /^L-a/ && $_{"Grams \"(a.a.)\""}<0.2')) && $t2->nofRow()==2) {
+  print "ok 67 match_pattern_hash()\n";
+} else {
+  print "not ok 67 match_pattern()\n";
+}
+
 # use DBI;
 # $dbh= DBI->connect("DBI:mysql:test", "test", "") or die $dbh->errstr;
 # $t = Data::Table::fromSQL($dbh, "show tables");
@@ -476,15 +527,15 @@ package main;
 
 $foo=FOO->new([[11,12],[21,22],[31,32]],['header1','header2'],0);
 if ($foo->csv) {
-  print "ok 62 Inheritance\n";
+  print "ok 68 Inheritance\n";
 } else {
-  print "not ok 62 Inheritance\n";
+  print "not ok 68 Inheritance\n";
 }
 $foo = FOO->fromCSVi("aaa.csv");
 if ($foo->csv) {
-  print "ok 63 inheritated instant method fromCSVi\n";
+  print "ok 69 inheritated instant method fromCSVi\n";
 } else {
-  print "not ok 63 inheritated instant method fromCSVi\n";
+  print "not ok 69 inheritated instant method fromCSVi\n";
 }
 
 sub equal {

@@ -1,4 +1,57 @@
 Revision history for Perl extension Data::Table.
+1.62 Fri May 25 11:40:09 PDT 2012
+  In this release, we address a few pain points
+
+  Data::Table::colMerge, update to support new options
+    { renameCol => 1}
+    If specified, duplicate column names in the second table is automatically renamed (by appending _2) to avoid conflict
+
+  We introduce some constants, so we have fewer numbers to remember.
+    Data::Table::NUMBER
+    Data::Table::STRING
+    Data::Table::ASC
+    Data::Table::DESC
+
+  for sort(), you can use $t->sort('col2', Data::Table::NUMBER, Data::Table::DESC); it is equivalent to $t->sort('col2', 0, 1);
+
+    Data::Table::INNER_JOIN
+    Data::Table::LEFT_JOIN
+    Data::Table::RIGHT_JOIN
+    Data::Table::FULL_JOIN
+
+  for join(), you may use $t->sort($t2, Data::Table::FULL_JOIN, ['col1'], ['col1']);
+  it is equivalent to $t->sort($t2, 3, ['col1'], ['col1']).
+
+  match_string, match_pattern have been generating @Data::Table::OK, which is a class-level array.
+  $t->match_pattern() will now also store the results (array ref) in $t->{OK}, that should be used in the future.
+  However, @Data::Table::OK is still supported for compatibility reasons.
+  This is not a pain point, but conceptually nicer to be localized.
+
+  match_pattern_hash() is added. The difference is each row is fed to the pattern as a hash %_.  In the case of
+  match_pattern, each row is fed as an array ref $_.  The pattern for match_pattern_hash() becomes much cleaner.
+  If a table has two columns: Col_A as the 1st column and Col_B as the 2nd column, a filter "Col_A>2 AND Col_B<2"
+  is written before as
+    $t->match_pattern('$_->[0] > 2 && $_->[1] <2');
+  where we need to figure out $t->colIndex('Col_A') is 0 and $t->colIndex('Col_B') is 1, in order to build the pattern.
+  Now you can use column name directly in the pattern:
+    $t->match_pattern_hash('$_{Col_A} >2 && $_{Col_B} <2');
+  This method creates $t->{OK}, as well as @Data::Table::OK, same as match_pattern().
+
+  Data::Table::rowMerge, update to support new options
+    { byName =>1, addNewCol => 1}
+    If byName is 1, rows in the second table are appended by matching their column names, so that the second table
+      can have columns in a different order.
+    If addNewCol is 1, columns not exist in the first table will be automatically added.
+      addNewCol is best used with byName. If used alone, addNewCol will just patch the two tables so that they have
+      the same number of columns.
+  Data::Table::subTable, update internal to remove side effect on column header array
+  Data::join add support for an option {renameCol => 1}.
+    If specified, duplicate column names in the second table is automatically renamed (by appending _2) to avoid conflict
+
+1.61 Mon Feb 27 21:07:55 PST 2012
+  Data::Table::fromSQL now can take DBI::st instead of a SQL string. This is introduced, so that
+  variable binding (such as CLOB/BLOB) can be done outside the method.
+
 1.60 Sat Feb 25 19:26:46 PST 2012
   Data::Table::addRow now also can take a hash reference. Hash keys are column names,
   undef will be the value, if a column name is not found in the hash.

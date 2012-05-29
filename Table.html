@@ -115,6 +115,8 @@
   $t2=$t-&gt;match_pattern('$_-&gt;[0] =~ /^L/ &amp;&amp; $_-&gt;[3]&lt;0.2'); 
                                         # Select the rows that matched the 
                                         # pattern specified 
+  $t2=$t-&gt;match_pattern_hash('$_{&quot;Amino acid&quot;} =~ /^L-a/ &amp;&amp; $_{&quot;Grams \&quot;(a.a.)\&quot;&quot;}&lt;0.2'));
+          # use column name in the pattern, method added in 1.62
   $t2=$t-&gt;match_string('John');         # Select the rows that matches 'John'   
                                         # in any column</pre>
 <pre>
@@ -247,7 +249,8 @@ instead of $t-&gt;rename($t-&gt;colIndex('oldColName'), 'newColIdx').</p>
 <dt><strong><a name="item__data__table__ok">@Data::Table::OK</a></strong>
 
 <dd>
-<p>see table::match_string and table::match_pattern</p>
+<p>see table::match_string, table::match_pattern, and table::match_pattern_hash
+Since 1.62, we recommend you to use $table-&gt;{OK} instead, which is a local array reference.</p>
 </dd>
 </li>
 <dt><strong><a name="item__data__table__defaults">%Data::Table::DEFAULTS</a></strong>
@@ -298,7 +301,8 @@ It returns a table object.
 $rowIdcsRef: points to an array of row indices.
 $colIDsRef: points to an array of column IDs.
 The function make a copy of selected elements from the original table. 
-Undefined $rowIdcsRef or $colIDsRef is interpreted as all rows or all columns.</p>
+Undefined $rowIdcsRef or $colIDsRef is interpreted as all rows or all columns.
+The elements in $colIDsRef may be modified as a side effect before version 1.62, fixed in 1.62.</p>
 </dd>
 </li>
 <dt><strong><a name="item_table_table_3a_3aclone">table table::clone</a></strong>
@@ -440,11 +444,21 @@ fromFileIsHeader works based on the assumption that no column header can be empt
 It returns a table object upon success or undef otherwise.
 $dbh: a valid database handler. 
 Typically $dbh is obtained from DBI-&gt;connect, see ``Interface to Database'' or DBI.pm.
-$sql: an SQL query string.
+$sql: an SQL query string or a DBI::st object (starting in version 1.61).
 $vars: optional reference to an array of variable values, 
 required if $sql contains '?'s which need to be replaced 
 by the corresponding variable values upon execution, see DBI.pm for details.
 Hint: in MySQL, Data::Table::fromSQL($dbh, 'show tables from test') will also create a valid table object.</p>
+</dd>
+<dd>
+<p>Data::Table::fromSQL now can take DBI::st instead of a SQL string. This is introduced, so that variable binding (such as CLOB/BLOB) can be done outside the method, for example:</p>
+</dd>
+<dd>
+<pre>
+  $sql = 'insert into test_table (id, blob_data) values (1, :val)';
+  $sth = $dbh-&gt;prepare($sql);
+  $sth-&gt;bind_param(':val', $blob, {ora_type =&gt; SQLT_BIN});
+  Data::Table::fromSQL($dbh, $sth);</pre>
 </dd>
 </li>
 <dt><strong><a name="item_fromsqli">table Data::Table::fromSQLi ($dbh, $sql, $vars)</a></strong>
@@ -745,8 +759,17 @@ As show, in the $func, a column element should be referred as $_-&gt;[$colIndex]
 <p>sort a table in place.
 First sort by column $colID1 in $order1 as $type1, then sort by $colID2 in $order2 as $type2, ...
 $type is 0 for numerical and 1 for others;
-$order is 0 for ascending and 1 for descending;
-Sorting is done in the priority of colID1, colID2, ...
+$order is 0 for ascending and 1 for descending;</p>
+</dd>
+<dd>
+<p>In 1.62, instead of memorize these numbers, you can use constants instead (notice constants do not start with '$').
+  Data::Table::NUMBER
+  Data::Table::STRING
+  Data::Table::ASC
+  Data::Table::DESC</p>
+</dd>
+<dd>
+<p>Sorting is done in the priority of colID1, colID2, ...
 It returns 1 upon success or undef otherwise. 
 Notice the table is rearranged as a result! This is different from perl's list sort, which returns a sorted copy while leave the original list untouched, 
 the authors feel inplace sorting is more natural.</p>
@@ -779,8 +802,29 @@ the authors feel inplace sorting is more natural.</p>
 upon success or undef otherwise. If $countOnly is set to 1, it simply returns the number of rows that matches the string without making a new copy of table. $countOnly is 0 by default.</p>
 </dd>
 <dd>
-<p>Side effect: @Data::Table::OK stores a true/false array for the original table rows. Using it, users can find out what are the rows being selected/unselected.
+<p>Side effect: @Data::Table::OK (should use $t-&gt;{OK} after 1.62) stores a true/false array for the original table rows. Using it, users can find out what are the rows being selected/unselected.
 In the $pattern string, a column element should be referred as $_-&gt;[$colIndex]. E.g., match_pattern('$_-&gt;[0]&gt;3 &amp;&amp; $_-&gt;[1]=~/^L') retrieve all the rows where its first column is greater than 3 and second column starts with letter 'L'. Notice it only takes colIndex, column names are not acceptable here!</p>
+</dd>
+</li>
+<dt><strong><a name="item_match_pattern_hash">table table::match_pattern_hash ($pattern, $countOnly)</a></strong>
+
+<dd>
+<p>return a new table consisting those rows evaluated to be true by $pattern
+upon success or undef otherwise. If $countOnly is set to 1, it simply returns the number of rows that matches the string without making a new copy of table. $countOnly is 0 by default.</p>
+</dd>
+<dd>
+<p>Side effect: @Data::Table::OK stores a true/false array for the original table rows. Using it, users can find out what are the rows being selected/unselected.
+In the $pattern string, a column element should be referred as ${column_name}.
+<a href="#item_match_pattern_hash"><code>match_pattern_hash()</code></a> is added in 1.62. The difference between this method and match_pattern is each row is fed to the pattern as a hash %_.
+In the case of match_pattern, each row is fed as an array ref $_.  The pattern for <a href="#item_match_pattern_hash"><code>match_pattern_hash()</code></a> becomes much cleaner.</p>
+</dd>
+<dd>
+<p>If a table has two columns: Col_A as the 1st column and Col_B as the 2nd column, a filter ``Col_A&gt;2 AND Col_<strong>2'' is written before as
+	$t-</strong>match_pattern('$_-&gt;[0] &gt; 2 &amp;&amp; $_-&gt;[1] &lt;2');
+where we need to figure out $t-&gt;<a href="#item_colindex"><code>colIndex('Col_A')</code></a> is 0 and $t-&gt;<a href="#item_colindex"><code>colIndex('Col_B')</code></a> is 1, in order to build the pattern.
+Now you can use column name directly in the pattern:
+	$t-&gt;match_pattern_hash('$_{Col_A} &gt;2 &amp;&amp; $_{Col_B} &lt;2');
+This method creates $t-&gt;{OK}, as well as @Data::Table::OK, same as match_pattern().</p>
 </dd>
 </li>
 <dt><strong><a name="item_match_string">table table::match_string ($s, $caseIgnore, $countOnly)</a></strong>
@@ -859,17 +903,20 @@ dentical. A column may be used more than once in $colsToCalculate.</p>
 </p>
 <h2><a name="tabletable_manipulations">Table-Table Manipulations</a></h2>
 <dl>
-<dt><strong><a name="item_rowmerge">int table::rowMerge ($tbl)</a></strong>
+<dt><strong><a name="item_rowmerge">int table::rowMerge ($tbl, $argRef)</a></strong>
 
 <dd>
 <p>Append all the rows in the table object $tbl to the original rows.
-The merging table $tbl must have the same number of columns as the original, as well as the columns are in exactly the same order.
+Before 1.62, the merging table $tbl must have the same number of columns as the original, as well as the columns are in exactly the same order.
 It returns 1 upon success, undef otherwise.
 The table object $tbl should not be used afterwards, since it becomes part of
 the new table.</p>
 </dd>
+<dd>
+<p>Since 1.62, you may provide {byName =&gt;1, addNewCol=&gt;1} as $argRef.  If byName is set to 1, the columns in in $tbl do not need to be in the same order as they are in the first table, instead the column name is used for the matching.  If addNewCol is set to 1, if $tbl contains a new column name that does not already exist in the first table, this new column will be automatically added to the resultant table.  Typically, you want to specify there two options simultaneously.</p>
+</dd>
 </li>
-<dt><strong><a name="item_colmerge">int table::colMerge ($tbl)</a></strong>
+<dt><strong><a name="item_colmerge">int table::colMerge ($tbl, $argRef)</a></strong>
 
 <dd>
 <p>Append all the columns in table object $tbl to the original columns. 
@@ -878,8 +925,11 @@ It returns 1 upon success, undef otherwise.
 Table $tbl should not be used afterwards, since it becomes part of
 the new table.</p>
 </dd>
+<dd>
+<p>Since 1.62, you can specify {renameCol =&gt; 1} as $argRef. This is to auto fix any column name collision.  If $tbl contains a column that already exists in the first table, it will be renamed (by a suffix _2) to avoid the collision.</p>
+</dd>
 </li>
-<dt><strong><a name="item_join">table table::join ($tbl, $type, $cols1, $cols2)</a></strong>
+<dt><strong><a name="item_join">table table::join ($tbl, $type, $cols1, $cols2, $argRef)</a></strong>
 
 <dd>
 <p>Join two tables. The following join types are supported (defined by $type):</p>
@@ -891,10 +941,20 @@ the new table.</p>
 3: full outer join</p>
 </dd>
 <dd>
+<p>In 1.62, instead of memorize these numbers, you can use constants instead (notice constants do not start with '$').
+  Data::Table::INNER_JOIN
+  Data::Table::LEFT_JOIN
+  Data::Table::RIGHT_JOIN
+  Data::Table::FULL_JOIN</p>
+</dd>
+<dd>
 <p>$cols1 and $cols2 are references to array of colIDs, where rows with the same elements in all listed columns are merged. As the result table, columns listed in $cols2 are deleted, before a new table is returned.</p>
 </dd>
 <dd>
 <p>The implementation is hash-join, the running time should be linear with respect to the sum of number of rows in the two tables (assume both tables fit in memory).</p>
+</dd>
+<dd>
+<p>If the non-key columns of the two tables share the same name, the routine will fail, as the result table cannot contain two columns of the same name.  In 1.62, one can specify {renameCol=&gt;1} as $argRef, so that the second column will be automatically renamed (with suffix _2) to avoid collision.</p>
 </dd>
 </li>
 </dl>
