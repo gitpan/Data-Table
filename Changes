@@ -1,4 +1,11 @@
 Revision history for Perl extension Data::Table.
+1.63 Tue Jun 12 17:05:43 PDT 2012
+  In this release, we patch addCol, addRow, rowMerge, colMerge to for an empty table
+  We introduce new methods isEmpty(), hasCol(), moveCol($colID, $newColIdx)
+  We introduce new constants for Data::Table::new()
+    Data::Table::ROW_BASED
+    Data::Table::COL_BASED
+
 1.62 Fri May 25 11:40:09 PDT 2012
   In this release, we address a few pain points
 

@@ -15,7 +15,7 @@ require AutoLoader;
 # Do not simply export all your public functions/methods/constants.
 @EXPORT = qw(
 );
-$VERSION = '1.62';
+$VERSION = '1.63';
 %DEFAULTS = (
   "CSV_DELIMITER"=>',', # controls how to read/write CSV file
   "CSV_QUALIFIER"=>'"',
@@ -28,6 +28,8 @@ $VERSION = '1.62';
               "'"=>"'", '"'=>"\"", '\\'=>"\\" );
 %Data::Table::TSV_ENC = ( "\0"=>'0', "\n"=>'n', "\t"=>'t', "\r"=>'r', "\b"=>'b',
               "'"=>"'", "\""=>'"', "\\"=>'\\' );
+use constant ROW_BASED => 0;
+use constant COL_BASED => 1;
 use constant NUMBER => 0;
 use constant STRING => 1;
 use constant ASC => 0;
@@ -88,9 +90,19 @@ sub colIndex {
   return $colID; # assume an index already
 }
 
+sub hasCol {
+  my ($self, $col) = @_;
+  return $self->colIndex($col) >= 0;
+}
+
 sub nofCol {
   my $self = shift;
   return scalar @{$self->{header}};
+}
+
+sub isEmpty {
+  my $self  = shift;
+  return $self->nofCol == 0;
 }
 
 sub nofRow {
@@ -321,6 +333,13 @@ sub addRow {
   my @t;
   my $myRowRef = $rowRef;
   if (ref $myRowRef eq 'HASH') {
+    if ($self->isEmpty) {
+      my $i = 0;
+      foreach my $s (keys %$myRowRef) {
+        push @{$self->{header}}, $s;
+        $self->{colHash}->{$s} = $i++;
+      }
+    }
     my @one = ();
     my @header = $self->header;
     for (my $i=0; $i< scalar @header; $i++) {
@@ -375,7 +394,7 @@ sub addCol {
   my $numCol=$self->nofCol();
   my @t;
   confess "addCol: size of added col does not match rows in the table\n" 
-	if scalar @$colRef != $self->nofRow(); 
+	if scalar @$colRef != $self->nofRow() and $numCol > 0; 
   $colIdx=$numCol unless defined($colIdx);
   return undef unless defined $self->checkNewCol($colIdx, $colName);
   $self->rotate() unless $self->{type};
@@ -572,6 +591,18 @@ sub swap{
   my $data2=$self->{data}->[$c2];
   $self->{data}->[$c1]=$data2;
   $self->{data}->[$c2]=$data1;
+  return 1;
+}
+
+sub moveCol {
+  my ($self, $colID, $colIdx) = @_;
+  my $c=$self->checkOldCol($colID);
+  return undef unless defined $c;
+  confess "New column location out of bound!" unless ($colIdx >= 0 && $colIdx < $self->nofCol);
+  return if $c == $colIdx;
+  my $colName = $self->{header}->[$c];
+  my $col = $self->delCol($colID);
+  $self->addCol($col, $colName, $colIdx);
   return 1;
 }
 
@@ -903,6 +934,14 @@ sub rowMerge {
   my %arg = defined $arg_ref ? %$arg_ref : ();
   $arg{byName} =0 unless exists $arg{byName};
   $arg{addNewCol} = 0 unless exists $arg{addNewCol};
+  if ($self->isEmpty && !$tbl->isEmpty) {
+    my @header = $tbl->header;
+    my $i = 0;
+    foreach my $s (@header) {
+      push @{$self->{header}}, $s;
+      $self->{colHash}->{$s} = $i++;
+    }
+  }
   if ($arg{byName} == 0 && $arg{addNewCol} == 0) {
     confess "Tables must have the same number of columns" unless ($self->nofCol()==$tbl->nofCol());
   } else {
@@ -971,7 +1010,7 @@ sub colMerge {
   my ($self, $tbl, $arg_ref) = @_;
   my %arg = defined $arg_ref ? %$arg_ref : ();
   $arg{renameCol} =0 unless exists $arg{renameCol};
-  confess "Tables must have the same number of rows" unless ($self->nofRow()==$tbl->nofRow());
+  confess "Tables must have the same number of rows" unless ($self->isEmpty || $self->nofRow()==$tbl->nofRow());
   my $col;
   my %h = ();
 	map {$h{$_} = 1} @{$self->{header}};
@@ -1647,7 +1686,7 @@ sub pivot {
   for ($i=0; $i<$self->nofRow; $i++) {
     my @row = ();
     my $myRow = $self->rowHashRef($i);
-    my $myKey;
+    my $myKey = ''; # set to '' to work with total agreegation (group all rows into one)
     if (scalar @X) {
       my @val = ();
       foreach my $x (@X) {
@@ -1659,15 +1698,18 @@ sub pivot {
       foreach my $s (@X_name) {
         push @row, $myRow->{$s};
       }
-      $row[$cnt-1] = undef if (scalar @row < $cnt);
+      for (my $j = scalar @row; $j<$cnt; $j++) {
+        $row[$j] = 0;
+      }
+      #$row[$cnt-1] = undef if (scalar @row < $cnt);
     }
     if (defined($y)) {
       my $val = $myRow->{$y_name};
       $val = "NULL" unless defined($val);
       if (!defined($X{$myKey})) {
-        $row[$Y{$val}] = defined($z)?$myRow->{$z_name}:1;
+        $row[$Y{$val}] = defined($z)?$myRow->{$z_name}: $row[$Y{$val}]+1;
       } else {
-        $ones[$X{$myKey}][$Y{$val}] = defined($z)?$myRow->{$z_name}:1;
+        $ones[$X{$myKey}][$Y{$val}] = defined($z)?$myRow->{$z_name}: $ones[$X{$myKey}][$Y{$val}]+1;
       }
     }
     unless (defined($X{$myKey})) {
@@ -2053,8 +2095,9 @@ create a new table.
 It returns a table object upon success, undef otherwise.
 $data: points to the spreadsheet data.
 $header: points to an array of column names. A column name must have at least one non-digit character.
-$type: 0 or 1 for row-based/column-based spreadsheet.
+$type: 0 or 1 for row-based/column-based spreadsheet. 
 $enforceCheck: 1/0 to turn on/off initial checking on the size of each row/column to make sure the data arguement indeed points to a valid structure.
+In 1.63, we introduce constants Data::Table::ROW_BASED and Data::Table::COL_BASED as synonyms for $type.  To create an empty Data::Table, use new Data::Table([], [], Data::Table::ROW_BASED);
 
 =item table table::subTable ($rowIdcsRef, $colIDsRef)
 
@@ -2207,6 +2250,14 @@ return number of columns.
 
 return number of rows.
 
+=item bool table::isEmpty
+
+return whether the table has any column, introduced in 1.63.
+
+=item bool table::hasCol($colID)
+
+returns whether the colID is a table column, introduced in 1.63.
+
 =item scalar table::elm ($rowIdx, $colID)
 
 return the value of a table element at [$rowIdx, $colID],
@@ -2308,7 +2359,7 @@ modify the value of a table element at [$rowIdx, $colID] to a new value $val.
 It returns 1 upon success, undef otherwise. 
 
 
-=item int table::addRow ( $rowRef, $rowIdx = table::nofRow)
+=item int table::addRow ($rowRef, $rowIdx = table::nofRow)
 
 add a new row ($rowRef may point to the actual list of scalars, or it can be a hash_ref (supported since version 1.60)).  If $rowRef points to a hash, the method will lookup the value of a field by ts column name: $rowRef->{colName}, if not found, undef is used for that field.
 The new row will be referred as $rowIdx as the result. E.g., addRow($aRow, 0) will put the new row as the very first row. By default, it appends a row to the end.
@@ -2389,6 +2440,11 @@ It returns 1 upon success or undef otherwise.
 =item int table::swap ($colID1, $colID2)
 
 swap two columns referred by $colID1 and $colID2.
+It returns 1 upon success or undef otherwise.
+
+=item int table::moveCol($colID, $colIdx)
+
+move column referred by $colID to a new location $colIdx.
 It returns 1 upon success or undef otherwise.
 
 =item int table::colMap ($colID, $fun)
@@ -2503,9 +2559,9 @@ Department, Sex are used together as the primary key columns, a new column "Nof 
 
 =item table table::pivot($colToSplit, $colToSplitIsNumeric, $colToFill, $colsToGroupBy, $keepRestCols)
 
-Every unique values in a column (specified by $colToSplit) become a new column. undef value become "NULL".  If the column type is numeric (specified by $colToSplitIsNumeric), the new column names are prefixed by "oldColumnName=". The new cell element is filled by the value specified by $colToFill.
+Every unique values in a column (specified by $colToSplit) become a new column. undef value become "NULL".  If the column type is numeric (specified by $colToSplitIsNumeric), the new column names are prefixed by "oldColumnName=". The new cell element is filled by the value specified by $colToFill (was 1/0 before version 1.63).
 
-When primary key columns are specified by $colsToGroupBy, all records sharing the same primary key collapse into one row, with values in $colToFill filling the corresponding new columns. If $colToFill is not specified, a cell is filled with 1 if there is a corresponding data record in the original table.
+When primary key columns are specified by $colsToGroupBy, all records sharing the same primary key collapse into one row, with values in $colToFill filling the corresponding new columns. If $colToFill is not specified, a cell is filled with the number of records fall into that cell.
 
 $colToSplit and $colToFill are colIDs. $colToSplitIsNumeric is 1/0. $colsToGroupBy is a reference to array of colIDs. $keepRestCols is 1/0, by default is 0. If $keepRestCols is off, only primary key columns and new columns are exported, otherwise, all the rest columns are exported as well.
 
@@ -2513,7 +2569,7 @@ E.g., applying pivot method to the resultant table of the example of the group m
 
 $t2->pivot("Sex", 0, "Average Salary",["Department"]);
 
-This creates a 2x3 table, where Departments are use as row keys, Sex (female and male) become two new columns. "Average Salary" values are used to fill the new table elements. Used together with group method, pivot method is very handy for account type of analysis.
+This creates a 2x3 table, where Departments are use as row keys, Sex (female and male) become two new columns. "Average Salary" values are used to fill the new table elements. Used together with group method, pivot method is very handy for accounting type of analysis.
 
 =back
 

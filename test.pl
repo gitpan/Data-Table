@@ -511,6 +511,13 @@ if (($t2=$t->match_pattern_hash('$_{"Amino acid"} =~ /^L-a/ && $_{"Grams \"(a.a.
   print "not ok 67 match_pattern()\n";
 }
 
+$t2->moveCol('Amino acid', 1);
+if (($t2->header)[1] eq 'Amino acid') {
+  print "ok 68 moveCol()\n";
+} else {
+  print "not ok 68 moveCol()\n";
+}
+
 # use DBI;
 # $dbh= DBI->connect("DBI:mysql:test", "test", "") or die $dbh->errstr;
 # $t = Data::Table::fromSQL($dbh, "show tables");
@@ -527,15 +534,15 @@ package main;
 
 $foo=FOO->new([[11,12],[21,22],[31,32]],['header1','header2'],0);
 if ($foo->csv) {
-  print "ok 68 Inheritance\n";
+  print "ok 69 Inheritance\n";
 } else {
-  print "not ok 68 Inheritance\n";
+  print "not ok 69 Inheritance\n";
 }
 $foo = FOO->fromCSVi("aaa.csv");
 if ($foo->csv) {
-  print "ok 69 inheritated instant method fromCSVi\n";
+  print "ok 70 inheritated instant method fromCSVi\n";
 } else {
-  print "not ok 69 inheritated instant method fromCSVi\n";
+  print "not ok 70 inheritated instant method fromCSVi\n";
 }
 
 sub equal {
