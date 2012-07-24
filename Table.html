@@ -4,7 +4,7 @@
 <head>
 <title>Data::Table - Data type related to database tables, spreadsheets, CSV/TSV files, HTML table displays, etc.</title>
 <meta http-equiv="content-type" content="text/html; charset=utf-8" />
-<link rev="made" href="mailto:none" />
+<link rev="made" href="mailto:root@gold.nonet" />
 </head>
 
 <body style="background-color: white">
@@ -40,6 +40,7 @@
 
 		<li><a href="#interface_to_database_and_web">Interface to Database and Web</a></li>
 		<li><a href="#interface_to_csv_tsv">Interface to CSV/TSV</a></li>
+		<li><a href="#interface_to_excel_xls_xlsx">Interface to Excel XLS/XLSX</a></li>
 		<li><a href="#interface_to_graphics_package">Interface to Graphics Package</a></li>
 	</ul>
 
@@ -60,6 +61,9 @@
 <hr />
 <h1><a name="synopsis">SYNOPSIS</a></h1>
 <pre>
+  News: The package now includes &quot;Perl Data::Table Cookbook&quot; (PDF), which may serve as a better learning material.
+  To download the free Cookbook, visit https://sites.google.com/site/easydatabase/
+  
   # some cool ways to use Table.pm
   use Data::Table;
   
@@ -225,45 +229,40 @@ instead of $t-&gt;rename($t-&gt;colIndex('oldColName'), 'newColIdx').</p>
 </p>
 <h2><a name="field_summary">Field Summary</a></h2>
 <dl>
-<dt><strong><a name="data_refto_arrayof_refto_array" class="item">data refto_arrayof_refto_array</a></strong>
+<dt><strong><a name="data_refto_arrayof_refto_array" class="item">data refto_arrayof_refto_array</a></strong></dt>
 
 <dd>
 <p>contains a two-dimensional spreadsheet data.</p>
 </dd>
-</li>
-<dt><strong><a name="header_refto_array" class="item">header refto_array</a></strong>
+<dt><strong><a name="header_refto_array" class="item">header refto_array</a></strong></dt>
 
 <dd>
 <p>contains all column names.</p>
 </dd>
-</li>
-<dt><strong><a name="type_0_1" class="item">type 0/1</a></strong>
+<dt><strong><a name="type_0_1" class="item">type 0/1</a></strong></dt>
 
 <dd>
 <p>0 is row-based, 1 is column-based, describe the orientation of @$data.</p>
 </dd>
-</li>
 </dl>
 <p>
 </p>
 <h2><a name="package_variables">Package Variables</a></h2>
 <dl>
-<dt><strong><a name="_data__table__version" class="item">$Data::Table::VERSION</a></strong>
+<dt><strong><a name="_data__table__version" class="item">$Data::Table::VERSION</a></strong></dt>
 
-<dt><strong><a name="_data__table__ok" class="item">@Data::Table::OK</a></strong>
+<dt><strong><a name="_data__table__ok" class="item">@Data::Table::OK</a></strong></dt>
 
 <dd>
 <p>see table::match_string, table::match_pattern, and table::match_pattern_hash
 Since 1.62, we recommend you to use $table-&gt;{OK} instead, which is a local array reference.</p>
 </dd>
-</li>
-<dt><strong><a name="_data__table__defaults" class="item">%Data::Table::DEFAULTS</a></strong>
+<dt><strong><a name="_data__table__defaults" class="item">%Data::Table::DEFAULTS</a></strong></dt>
 
 <dd>
 <p>Store default settings, currently it contains CSV_DELIMITER (set to ','), CSV_QUALIFER (set to '&quot;'), and OS (set to 0).
 see table::fromCSV, table::csv, table::fromTSV, table::tsv for details.</p>
 </dd>
-</li>
 </dl>
 <p>
 </p>
@@ -286,7 +285,7 @@ see table::fromCSV, table::csv, table::fromTSV, table::tsv for details.</p>
 </p>
 <h2><a name="table_creation">Table Creation</a></h2>
 <dl>
-<dt><strong><a name="new" class="item">table Data::Table::new ( $data = [], $header = [], $type = 0, $enforceCheck = 1)</a></strong>
+<dt><strong><a name="new" class="item">table Data::Table::new ( $data = [], $header = [], $type = 0, $enforceCheck = 1)</a></strong></dt>
 
 <dd>
 <p>create a new table.
@@ -297,27 +296,25 @@ $type: 0 or 1 for row-based/column-based spreadsheet.
 $enforceCheck: 1/0 to turn on/off initial checking on the size of each row/column to make sure the data arguement indeed points to a valid structure.
 In 1.63, we introduce constants Data::Table::ROW_BASED and Data::Table::COL_BASED as synonyms for $type.  To create an empty Data::Table, use new Data::Table([], [], Data::Table::ROW_BASED);</p>
 </dd>
-</li>
-<dt><strong><a name="subtable" class="item">table table::subTable ($rowIdcsRef, $colIDsRef)</a></strong>
+<dt><strong><a name="subtable" class="item">table table::subTable ($rowIdcsRef, $colIDsRef, $arg_ref)</a></strong></dt>
 
 <dd>
 <p>create a new table, which is a subset of the original.
 It returns a table object.
-$rowIdcsRef: points to an array of row indices.
+$rowIdcsRef: points to an array of row indices (or a true/false row mask array).
 $colIDsRef: points to an array of column IDs.
 The function make a copy of selected elements from the original table. 
 Undefined $rowIdcsRef or $colIDsRef is interpreted as all rows or all columns.
-The elements in $colIDsRef may be modified as a side effect before version 1.62, fixed in 1.62.</p>
+The elements in $colIDsRef may be modified as a side effect before version 1.62, fixed in 1.62.
+If $arg_ref-&gt;{useRowMask} is set to 1, $rowIdcsRef is a true/false row mask array, where rows marked as TRUE will be returned.  Row mask array is typically the Data::Table::OK set by match_string/match_pattern/match_pattern_hash methods.</p>
 </dd>
-</li>
-<dt><strong><a name="table_table_clone" class="item">table table::clone</a></strong>
+<dt><strong><a name="table_table_clone" class="item">table table::clone</a></strong></dt>
 
 <dd>
 <p>make a clone of the original.
 It return a table object, equivalent to table::subTable(undef,undef).</p>
 </dd>
-</li>
-<dt><strong><a name="fromcsv" class="item">table Data::Table::fromCSV ($name_or_handler, $includeHeader = 1, $header = [&quot;col1&quot;, ... ], {OS=&gt;$Data::Table::DEFAULTS{'OS'}, delimiter=&gt;$Data::Table::DEFAULTS{'CSV_DELIMITER'}, qualifier=&gt;$Data::Table::DEFAULTS{'CSV_QUALIFIER'}, skip_lines=&gt;0, skip_pattern=&gt;undef})</a></strong>
+<dt><strong><a name="fromcsv" class="item">table Data::Table::fromCSV ($name_or_handler, $includeHeader = 1, $header = [&quot;col1&quot;, ... ], {OS=&gt;$Data::Table::DEFAULTS{'OS'}, delimiter=&gt;$Data::Table::DEFAULTS{'CSV_DELIMITER'}, qualifier=&gt;$Data::Table::DEFAULTS{'CSV_QUALIFIER'}, skip_lines=&gt;0, skip_pattern=&gt;undef})</a></strong></dt>
 
 <dd>
 <p>create a table from a CSV file.
@@ -326,31 +323,17 @@ $name_or_handler: the CSV file name or an already opened file handler. If a hand
 $includeHeader: 0 or 1 to ignore/interpret the first line in the file as column names,
 If it is set to 0, the array in $header is used. If $header is not supplied, the default column names are &quot;col1&quot;, &quot;col2&quot;, ...
 optional named argument OS specifies under which operating system the CSV file was generated. 0 for UNIX, 1 for PC and 2 for MAC. If not specified, $Data::Table::DEFAULTS{'OS'} is used, which defaults to UNIX. Basically linebreak is defined as &quot;\n&quot;, &quot;\r\n&quot; and &quot;\r&quot; for three systems, respectively.</p>
-</dd>
-<dd>
 <p>optional name argument delimiter and qualifier let user replace comma and double-quote by other meaningful single characters. &lt;b&gt;Exception&lt;/b&gt;: if the delimiter or the qualifier is a special symbol in regular expression, you must escape it by '\'. For example, in order to use pipe symbol as the delimiter, you must specify the delimiter as '\|'.</p>
-</dd>
-<dd>
 <p>optional name argument skip_lines let you specify how many lines in the csv file should be skipped, before the data are interpretted.</p>
-</dd>
-<dd>
 <p>optional name argument skip_pattern let you specify a regular expression. Lines that match the regular expression will be skipped.</p>
-</dd>
-<dd>
 <p>The following example reads a DOS format CSV file and writes a MAC format:</p>
-</dd>
-<dd>
 <pre>
   $t = Data::Table:fromCSV('A_DOS_CSV_FILE.csv', 1, undef, {OS=&gt;1});
   $t-&gt;csv(1, {OS=&gt;2, file=&gt;'A_MAC_CSV_FILE.csv'});
   open(SRC, 'A_DOS_CSV_FILE.csv') or die &quot;Cannot open A_DOS_CSV_FILE.csv to read!&quot;;
   $t = Data::Table::fromCSV(\*SRC, 1);
   close(SRC);</pre>
-</dd>
-<dd>
 <p>The following example reads a non-standard CSV file with : as the delimiter, ' as the qaulifier</p>
-</dd>
-<dd>
 <pre>
   my $s=&quot;col_A:col_B:col_C\n1:2, 3 or 5:3.5\none:'one:two':'double\&quot;, single'''&quot;;
   open my $fh, &quot;&lt;&quot;, \$s or die &quot;Cannot open in-memory file\n&quot;;
@@ -362,22 +345,16 @@ optional named argument OS specifies under which operating system the CSV file w
   # 1,&quot;2, 3 or 5&quot;,3.5
   # one,one:two,&quot;double&quot;&quot;, single'&quot;
   print $t-&gt;csv(1, {delimiter=&gt;':', qualifier=&gt;&quot;'&quot;}); # prints the csv file use the original definition</pre>
-</dd>
-<dd>
 <p>The following example reads bbb.csv file (included in the package) by skipping the first line (skip_lines=&gt;1), then treats any line that starts with '#' (or space comma) as comments (skip_pattern=&gt;'^\s*#'), use ':' as the delimiter.</p>
-</dd>
-<dd>
 <pre>
   $t = Data::Table::fromCSV(&quot;bbb.csv&quot;, 1, undef, {skip_lines=&gt;1, delimiter=&gt;':', skip_pattern=&gt;'^\s*#'});</pre>
 </dd>
-</li>
-<dt><strong><a name="fromcsvi" class="item">table table::fromCSVi ($name, $includeHeader = 1, $header = [&quot;col1&quot;, ... ])</a></strong>
+<dt><strong><a name="fromcsvi" class="item">table table::fromCSVi ($name, $includeHeader = 1, $header = [&quot;col1&quot;, ... ])</a></strong></dt>
 
 <dd>
 <p>Same as Data::Table::fromCSV. However, this is an instant method (that's what 'i' stands for), which can be inherited.</p>
 </dd>
-</li>
-<dt><strong><a name="fromtsv" class="item">table Data::Table::fromTSV ($name, $includeHeader = 1, $header = [&quot;col1&quot;, ... ], {OS=&gt;$Data::Table::DEFAULTS{'OS'}, skip_lines=&gt;0, skip_pattern=&gt;undef, transform_element=&gt;1})</a></strong>
+<dt><strong><a name="fromtsv" class="item">table Data::Table::fromTSV ($name, $includeHeader = 1, $header = [&quot;col1&quot;, ... ], {OS=&gt;$Data::Table::DEFAULTS{'OS'}, skip_lines=&gt;0, skip_pattern=&gt;undef, transform_element=&gt;1})</a></strong></dt>
 
 <dd>
 <p>create a table from a TSV file.
@@ -387,30 +364,18 @@ $includeHeader: 0 or 1 to ignore/interpret the first line in the file as column 
 If it is set to 0, the array in $header is used. If $header is not supplied, the default column names are &quot;col1&quot;, &quot;col2&quot;, ...
 optional named argument OS specifies under which operating system the TSV file was generated. 0 for UNIX, 1 for P
 C and 2 for MAC. If not specified, $Data::Table::DEFAULTS{'OS'} is used, which defaults to UNIX. Basically linebreak is defined as &quot;\n&quot;, &quot;\r\n&quot; and &quot;\r&quot; for three systems, respectively.  &lt;b&gt;Exception&lt;/b&gt;: if the delimiter or the qualifier is a special symbol in regular expression, you must escape it by '\'. For example, in order to use pipe symbol as the delimiter, you must specify the delimiter as '\|'.</p>
-</dd>
-<dd>
 <p>optional name argument skip_lines let you specify how many lines in the csv file should be skipped, before the data are interpretted.</p>
-</dd>
-<dd>
 <p>optional name argument skip_pattern let you specify a regular expression. Lines that match the regular expression will be skipped.</p>
-</dd>
-<dd>
 <p>optional name argument transform_element let you switch on/off \t to tab, \N to undef (etc.) transformation. See TSV FORMAT for details. However, elements are always transformed when export table to tsv format, because not escaping an element containing a tab will be disasterous.</p>
-</dd>
-<dd>
 <p>See similar examples under Data::Table::fromCSV;</p>
-</dd>
-<dd>
 <p>Note: read &quot;TSV FORMAT&quot; section for details.</p>
 </dd>
-</li>
-<dt><strong><a name="fromtsvi" class="item">table table::fromTSVi ($name, $includeHeader = 1, $header = [&quot;col1&quot;, ... ])</a></strong>
+<dt><strong><a name="fromtsvi" class="item">table table::fromTSVi ($name, $includeHeader = 1, $header = [&quot;col1&quot;, ... ])</a></strong></dt>
 
 <dd>
 <p>Same as Data::Table::fromTSV. However, this is an instant method (that's what 'i' stands for), which can be inherited.</p>
 </dd>
-</li>
-<dt><strong><a name="fromfile" class="item">table Data::Table::fromFile ($file_name, $arg_ref = {linesChecked=&gt;2})</a></strong>
+<dt><strong><a name="fromfile" class="item">table Data::Table::fromFile ($file_name, $arg_ref = {linesChecked=&gt;2})</a></strong></dt>
 
 <dd>
 <p>create a table from a text file.
@@ -418,11 +383,7 @@ return a table object.
 $file_name: the file name (cannot take a file handler).
 linesChecked: the first number of lines used for guessing the input format. The delimiter will have to produce the same number of columns for these lines. By default only check the first 2 lines, 0 means all lines in the file.
 $arg_ref can take additional parameters, such as OS, has_header, delimiter, transform_element, etc.</p>
-</dd>
-<dd>
 <p>fromFile is added after version 1.51. It relies on the following new methods to automatically figure out the correct file format in order to call fromCSV or fromTSV internally:</p>
-</dd>
-<dd>
 <pre>
   fromFileGuessOS($file_name)
     returns integer, 0 for UNIX, 1 for PC, 2 for MAC
@@ -432,17 +393,12 @@ $arg_ref can take additional parameters, such as OS, has_header, delimiter, tran
     returns the guessed delimiter string.
   fromFileIsHeader($line_concent, $delimiter) # $delimiter defaults to $Data::Table::DEFAULTS{'CSV_DELIMITER'}
     returns 1 or 0.</pre>
-</dd>
-<dd>
 <p>It first ask fromFileGuessOS to figure out which OS (UNIX, PC or MAC) generated the input file. The fetch the first linesChecked lines using fromFileGetTopLines. It then guesses the best delimiter using fromFileGuessDelimiter, then it checks if the first line looks like a column header row using fromFileIsHeader. Since fromFileGuessOS and fromFileGetTopLines needs to open/close the input file, these methods can only take file name, not file handler. If user specify formatting parameters in $arg_ref, the routine will skip the corresponding guess work. At the end, fromFile simply calls either fromCSV or fromTSV with $arg_ref forwarded. So if you call fromFile({transform_element=&gt;0}) on a TSV file, transform_elment will be passed onto fromTSV calls internally.</p>
-</dd>
-<dd>
 <p>fromFileGuessOS finds the linebreak that gives shortest first line (in the priority of UNIX, PC, MAC upon tie).
 fromFileGuessDelimiter works based on the assumption that the correct delimiter will produce equal number of columns for the given rows. If multiple matches, it chooses the delimiter that gives maximum number of columns. If none matches, it returns the default delimiter.
 fromFileIsHeader works based on the assumption that no column header can be empty or pure numeric value.</p>
 </dd>
-</li>
-<dt><strong><a name="fromsql" class="item">table Data::Table::fromSQL ($dbh, $sql, $vars)</a></strong>
+<dt><strong><a name="fromsql" class="item">table Data::Table::fromSQL ($dbh, $sql, $vars)</a></strong></dt>
 
 <dd>
 <p>create a table from the result of an SQL selection query.
@@ -454,95 +410,80 @@ $vars: optional reference to an array of variable values,
 required if $sql contains '?'s which need to be replaced 
 by the corresponding variable values upon execution, see DBI.pm for details.
 Hint: in MySQL, Data::Table::fromSQL($dbh, 'show tables from test') will also create a valid table object.</p>
-</dd>
-<dd>
 <p>Data::Table::fromSQL now can take DBI::st instead of a SQL string. This is introduced, so that variable binding (such as CLOB/BLOB) can be done outside the method, for example:</p>
-</dd>
-<dd>
 <pre>
   $sql = 'insert into test_table (id, blob_data) values (1, :val)';
   $sth = $dbh-&gt;prepare($sql);
   $sth-&gt;bind_param(':val', $blob, {ora_type =&gt; SQLT_BIN});
   Data::Table::fromSQL($dbh, $sth);</pre>
 </dd>
-</li>
-<dt><strong><a name="fromsqli" class="item">table Data::Table::fromSQLi ($dbh, $sql, $vars)</a></strong>
+<dt><strong><a name="fromsqli" class="item">table Data::Table::fromSQLi ($dbh, $sql, $vars)</a></strong></dt>
 
 <dd>
 <p>Same as Data::Table::fromSQL. However, this is an instant method (that's what 'i' stands for), whic
 h can be inherited.</p>
 </dd>
-</li>
 </dl>
 <p>
 </p>
 <h2><a name="table_access_and_properties">Table Access and Properties</a></h2>
 <dl>
-<dt><strong><a name="colindex" class="item">int table::colIndex ($colID)</a></strong>
+<dt><strong><a name="colindex" class="item">int table::colIndex ($colID)</a></strong></dt>
 
 <dd>
 <p>translate a column name into its numerical position, the first column has index 0 as in as any perl array.
 return -1 for invalid column names.</p>
 </dd>
-</li>
-<dt><strong><a name="int_table_nofcol" class="item">int table::nofCol</a></strong>
+<dt><strong><a name="int_table_nofcol" class="item">int table::nofCol</a></strong></dt>
 
 <dd>
 <p>return number of columns.</p>
 </dd>
-</li>
-<dt><strong><a name="int_table_nofrow" class="item">int table::nofRow</a></strong>
+<dt><strong><a name="int_table_nofrow" class="item">int table::nofRow</a></strong></dt>
 
 <dd>
 <p>return number of rows.</p>
 </dd>
-</li>
-<dt><strong><a name="bool_table_isempty" class="item">bool table::isEmpty</a></strong>
+<dt><strong><a name="bool_table_isempty" class="item">bool table::isEmpty</a></strong></dt>
 
 <dd>
 <p>return whether the table has any column, introduced in 1.63.</p>
 </dd>
-</li>
-<dt><strong><a name="hascol" class="item">bool table::hasCol($colID)</a></strong>
+<dt><strong><a name="hascol" class="item">bool table::hasCol($colID)</a></strong></dt>
 
 <dd>
 <p>returns whether the colID is a table column, introduced in 1.63.</p>
 </dd>
-</li>
-<dt><strong><a name="elm" class="item">scalar table::elm ($rowIdx, $colID)</a></strong>
+<dt><strong><a name="elm" class="item">scalar table::elm ($rowIdx, $colID)</a></strong></dt>
 
 <dd>
 <p>return the value of a table element at [$rowIdx, $colID],
 undef if $rowIdx or $colID is invalid.</p>
 </dd>
-</li>
-<dt><strong><a name="elmref" class="item">refto_scalar table::elmRef ($rowIdx, $colID)</a></strong>
+<dt><strong><a name="elmref" class="item">refto_scalar table::elmRef ($rowIdx, $colID)</a></strong></dt>
 
 <dd>
 <p>return the reference to a table element at [$rowIdx, $colID], to allow possible modification.
 It returns undef for invalid $rowIdx or $colID.</p>
 </dd>
-</li>
-<dt><strong><a name="header" class="item">array table::header ($header)</a></strong>
+<dt><strong><a name="header" class="item">array table::header ($header)</a></strong></dt>
 
 <dd>
 <p>Without argument, it returns an array of column names.
 Otherwise, use the new header.</p>
 </dd>
-</li>
-<dt><strong><a name="int_table_type" class="item">int table::type</a></strong>
+<dt><strong><a name="int_table_type" class="item">int table::type</a></strong></dt>
 
 <dd>
 <p>return the implementation type of the table (row-based/column-based) at the time,
 be aware that the type of a table should be considered as volatile during method calls.</p>
 </dd>
-</li>
 </dl>
 <p>
 </p>
 <h2><a name="table_formatting">Table Formatting</a></h2>
 <dl>
-<dt><strong><a name="csv" class="item">string table::csv ($header, {OS=&gt;$Data::Table::DEFAULTS{'OS'}, file=&gt;undef, delimiter=&gt;$Data::Table::DEFAULTS{'CSV_DELIMITER'}, qualifier=&gt;$Data::Table::DEFAULTS{'CSV_QAULIFIER'}})</a></strong>
+<dt><strong><a name="csv" class="item">string table::csv ($header, {OS=&gt;$Data::Table::DEFAULTS{'OS'}, file=&gt;undef, delimiter=&gt;$Data::Table::DEFAULTS{'CSV_DELIMITER'}, qualifier=&gt;$Data::Table::DEFAULTS{'CSV_QAULIFIER'}})</a></strong></dt>
 
 <dd>
 <p>return a string corresponding to the CSV representation of the table.
@@ -552,8 +493,7 @@ C and 2 for MAC. If not specified, $Data::Table::DEFAULTS{'OS'} is used. Basical
 if 'file' is given, the csv content will be written into it, besides returning the string.
 One may specify custom delimiter and qualifier if the other than default are desired.</p>
 </dd>
-</li>
-<dt><strong><a name="string_table_tsv" class="item">string table::tsv</a></strong>
+<dt><strong><a name="string_table_tsv" class="item">string table::tsv</a></strong></dt>
 
 <dd>
 <p>return a string corresponding to the TSV representation of the table.
@@ -561,174 +501,135 @@ $header controls whether to print the header line, 1 for yes, 0 for no.
 optional named argument OS specifies for which operating system the TSV file is generated. 0 for UNIX, 1 for P
 C and 2 for MAC. If not specified, $Data::Table::DEFAULTS{'OS'} is used. Basically linebreak is defined as &quot;\n&quot;, &quot;\r\n&quot; and &quot;\r&quot; for three systems, respectively.
 if 'file' is given, the tsv content will be written into it, besides returning the string.</p>
-</dd>
-<dd>
 <p>Note: read &quot;TSV FORMAT&quot; section for details.</p>
 </dd>
-</li>
 <dt><strong><a name="html" class="item">string table::html ($colorArrayRef_or_colorHashRef = [&quot;#D4D4BF&quot;,&quot;#ECECE4&quot;,&quot;#CCCC99&quot;], 
 			  $tag_tbl = {border =&gt; '1'},
                           $tag_tr  = {align =&gt; 'left'},
                           $tag_th  = {align =&gt; 'center'},
                           $tag_td  = {col3 =&gt; 'align=&quot;right&quot; valign=&quot;bottom&quot;', 4 =&gt; 'align=&quot;left&quot;'},
                           $l_portrait = 1
-                        )</a></strong>
+                        )</a></strong></dt>
 
 <dd>
 <p>return a string corresponding to a 'Portrait/Landscape'-style html-tagged table.
 $colorArrayRef_or_colorHashRef: If a hash reference is provided, it will take three CSS class names for odd data rows, even data rows and for the header row.  The default hash is {even=&gt;&quot;data_table_even&quot;, odd=&gt;&quot;data_table_odd&quot;, header=&gt;&quot;data_table_header&quot;).
 If a hash reference is not found, a reference to an array of three color strings is expected to provided for backgrounds for even-row records, odd-row records, and -der row, respectively.  A default color array (&quot;#D4D4BF&quot;,&quot;#ECECE4&quot;,&quot;#CCCC99&quot;) will be used if $colors isn't defined.</p>
-</dd>
-<dd>
 <p>Before version 1.59, the parameter can only accept an array reference.</p>
-</dd>
-<dd>
 <p>$tag_tbl: a reference to a hash that specifies any legal attributes such as name, border,
 id, class, etc. for the TABLE tag.</p>
-</dd>
-<dd>
 <p>$tag_tr: a reference to a hash that specifies any legal attributes for the TR tag.</p>
-</dd>
-<dd>
 <p>$tag_th: a reference to a hash that specifies any legal attributes for the TH tag.</p>
-</dd>
-<dd>
 <p>$tag_td: a reference to a hash that specifies any legal attributes for the TD tag.</p>
-</dd>
-<dd>
 <p>Notice $tag_tr and $tag_th controls all the rows and columns of the whole table. The keys of the hash are the attribute names in these cases. However, $tag_td is column specific, i.e., you should specify TD attributes for every column separately.
 The key of %$tag_td are either column names or column indices, the value is the full string to be inserted into the TD tag. E.g., $tag_td  = {col3 =&gt; 'align=right valign=bottom} only change the TD tag in &quot;col3&quot; to be &amp;lt;TD align=right valign=bottom&amp;gt;.</p>
-</dd>
-<dd>
 <p>$portrait controls the layout of the table. The default is 1, i.e., the table is shown in the
 &quot;Portrait&quot; style, like in Excel. 0 means &quot;Landscape&quot;. Since version 1.59, tbody and thead tags are added to the portrait mode output.</p>
-</dd>
-<dd>
 <p>Attention: You will have to escape HTML-Entities yourself (for example '&lt;' as '&amp;lt;'), if you have characters in you table which need to be escaped. You can do this for example with the escapeHTML-function from CGI.pm (or the HTML::Entities module).</p>
-</dd>
-<dd>
 <pre>
   use CGI qw(escapeHTML);
   [...]
   $t-&gt;colMap($columnname, sub{escapeHTML($_)}); # for every column, where HTML-Entities occur.</pre>
 </dd>
-</li>
 <dt><strong><a name="html2" class="item">string table::html2 ($colors = [&quot;#D4D4BF&quot;,&quot;#ECECE4&quot;,&quot;#CCCC99&quot;],
-		 	   $specs = {'name' =&gt; '', 'border' =&gt; '1', ...})</a></strong>
+		 	   $specs = {'name' =&gt; '', 'border' =&gt; '1', ...})</a></strong></dt>
 
 <dd>
 <p>This method is deprecated. It's here for compatibility. It now simple call html method with $portrait = 0, see previous description.</p>
-</dd>
-<dd>
 <p>return a string corresponding to a &quot;Landscape&quot; html-tagged table.
 This is useful to present a table with many columns, but very few entries.
 Check the above table::html for parameter descriptions.</p>
 </dd>
-</li>
 </dl>
 <p>
 </p>
 <h2><a name="table_operations">Table Operations</a></h2>
 <dl>
-<dt><strong><a name="setelm" class="item">int table::setElm ($rowIdx, $colID, $val)</a></strong>
+<dt><strong><a name="setelm" class="item">int table::setElm ($rowIdx, $colID, $val)</a></strong></dt>
 
 <dd>
 <p>modify the value of a table element at [$rowIdx, $colID] to a new value $val.
 It returns 1 upon success, undef otherwise.</p>
 </dd>
-</li>
-<dt><strong><a name="addrow" class="item">int table::addRow ($rowRef, $rowIdx = table::nofRow)</a></strong>
+<dt><strong><a name="addrow" class="item">int table::addRow ($rowRef, $rowIdx = table::nofRow)</a></strong></dt>
 
 <dd>
 <p>add a new row ($rowRef may point to the actual list of scalars, or it can be a hash_ref (supported since version 1.60)).  If $rowRef points to a hash, the method will lookup the value of a field by ts column name: $rowRef-&gt;{colName}, if not found, undef is used for that field.
 The new row will be referred as $rowIdx as the result. E.g., addRow($aRow, 0) will put the new row as the very first row. By default, it appends a row to the end.
 It returns 1 upon success, undef otherwise.</p>
 </dd>
-</li>
-<dt><strong><a name="delrow" class="item">refto_array table::delRow ( $rowIdx )</a></strong>
+<dt><strong><a name="delrow" class="item">refto_array table::delRow ( $rowIdx )</a></strong></dt>
 
 <dd>
 <p>delete a row at $rowIdx. It will the reference to the deleted row.</p>
 </dd>
-</li>
-<dt><strong><a name="delrows" class="item">refto_array table::delRows ( $rowIdcsRef )</a></strong>
+<dt><strong><a name="delrows" class="item">refto_array table::delRows ( $rowIdcsRef )</a></strong></dt>
 
 <dd>
-<p>delete rows in @$rowIdcsRef. It will return an array of deleted rows
+<p>delete rows in @$rowIdcsRef. It will return an array of deleted rows in the same order of $rowIdcsRef upon success.
 upon success.</p>
 </dd>
-</li>
-<dt><strong><a name="addcol" class="item">int table::addCol ($colRef, $colName, $colIdx = numCol)</a></strong>
+<dt><strong><a name="addcol" class="item">int table::addCol ($colRef, $colName, $colIdx = numCol)</a></strong></dt>
 
 <dd>
 <p>add a new column ($colRef points to the actual data), the new column will be referred as $colName or $colIdx as the result. E.g., addCol($aCol, 'newCol', 0) will put the new column as the very first column.
 By default, append a row to the end.
 It will return 1 upon success or undef otherwise.</p>
 </dd>
-</li>
-<dt><strong><a name="delcol" class="item">refto_array table::delCol ($colID)</a></strong>
+<dt><strong><a name="delcol" class="item">refto_array table::delCol ($colID)</a></strong></dt>
 
 <dd>
 <p>delete a column at $colID
 return the reference to the deleted column.</p>
 </dd>
-</li>
-<dt><strong><a name="delcols" class="item">arrayof_refto_array table::delCols ($colIDsRef)</a></strong>
+<dt><strong><a name="delcols" class="item">arrayof_refto_array table::delCols ($colIDsRef)</a></strong></dt>
 
 <dd>
 <p>delete a list of columns, pointed by $colIDsRef. It will
-return an array of deleted columns upon success.</p>
+return an array of deleted columns in the same order of $colIDsRef  upon success.</p>
 </dd>
-</li>
-<dt><strong><a name="rowref" class="item">refto_array table::rowRef ($rowIdx)</a></strong>
+<dt><strong><a name="rowref" class="item">refto_array table::rowRef ($rowIdx)</a></strong></dt>
 
 <dd>
 <p>return a reference to the row at $rowIdx
 upon success or undef otherwise.</p>
 </dd>
-</li>
-<dt><strong><a name="rowrefs" class="item">refto_arrayof_refto_array table::rowRefs ($rowIdcsRef)</a></strong>
+<dt><strong><a name="rowrefs" class="item">refto_arrayof_refto_array table::rowRefs ($rowIdcsRef)</a></strong></dt>
 
 <dd>
 <p>return a reference to array of row references upon success, undef otherwise.</p>
 </dd>
-</li>
-<dt><strong><a name="row" class="item">array table::row ($rowIdx)</a></strong>
+<dt><strong><a name="row" class="item">array table::row ($rowIdx)</a></strong></dt>
 
 <dd>
 <p>return a copy of the row at $rowIdx 
 upon success or undef otherwise.</p>
 </dd>
-</li>
-<dt><strong><a name="rowhashref" class="item">refto_hash table::rowHashRef ($rowIdx)</a></strong>
+<dt><strong><a name="rowhashref" class="item">refto_hash table::rowHashRef ($rowIdx)</a></strong></dt>
 
 <dd>
 <p>return a reference to a hash, which contains a copy of the row at $rowIdx,
 upon success or undef otherwise. The keys in the hash are column names, and
 the values are corresponding elements in that row. The hash is a copy, therefore modifying the hash values doesn't change the original table.</p>
 </dd>
-</li>
-<dt><strong><a name="colref" class="item">refto_array table::colRef ($colID)</a></strong>
+<dt><strong><a name="colref" class="item">refto_array table::colRef ($colID)</a></strong></dt>
 
 <dd>
 <p>return a reference to the column at $colID
 upon success.</p>
 </dd>
-</li>
-<dt><strong><a name="colrefs" class="item">refto_arrayof_refto_array table::colRefs ($colIDsRef)</a></strong>
+<dt><strong><a name="colrefs" class="item">refto_arrayof_refto_array table::colRefs ($colIDsRef)</a></strong></dt>
 
 <dd>
 <p>return a reference to array of column references upon success.</p>
 </dd>
-</li>
-<dt><strong><a name="col" class="item">array table::col ($colID)</a></strong>
+<dt><strong><a name="col" class="item">array table::col ($colID)</a></strong></dt>
 
 <dd>
 <p>return a copy to the column at $colID
 upon success or undef otherwise.</p>
 </dd>
-</li>
-<dt><strong><a name="rename" class="item">int table::rename ($colID, $newName)</a></strong>
+<dt><strong><a name="rename" class="item">int table::rename ($colID, $newName)</a></strong></dt>
 
 <dd>
 <p>rename the column at $colID to a $newName 
@@ -737,37 +638,39 @@ and should not be identical to any other existing column names).
 It returns 1 upon success
 or undef otherwise.</p>
 </dd>
-</li>
-<dt><strong><a name="replace" class="item">refto_array table::replace ($oldColID, $newColRef, $newName)</a></strong>
+<dt><strong><a name="replace" class="item">refto_array table::replace ($oldColID, $newColRef, $newName)</a></strong></dt>
 
 <dd>
 <p>replace the column at $oldColID by the array pointed by $newColRef, and renamed it to $newName. $newName is optional if you don't want to rename the column.
 It returns 1 upon success or undef otherwise.</p>
 </dd>
-</li>
-<dt><strong><a name="swap" class="item">int table::swap ($colID1, $colID2)</a></strong>
+<dt><strong><a name="swap" class="item">int table::swap ($colID1, $colID2)</a></strong></dt>
 
 <dd>
 <p>swap two columns referred by $colID1 and $colID2.
 It returns 1 upon success or undef otherwise.</p>
 </dd>
-</li>
-<dt><strong><a name="movecol" class="item">int table::moveCol($colID, $colIdx)</a></strong>
+<dt><strong><a name="movecol" class="item">int table::moveCol($colID, $colIdx)</a></strong></dt>
 
 <dd>
 <p>move column referred by $colID to a new location $colIdx.
 It returns 1 upon success or undef otherwise.</p>
 </dd>
-</li>
-<dt><strong><a name="colmap" class="item">int table::colMap ($colID, $fun)</a></strong>
+<dt><strong><a name="reorder" class="item">int table::reorder($colIDRefs, $arg_ref)</a></strong></dt>
+
+<dd>
+<p>Rearrange the columns according to the order specified in $colIDRef.  Columns not specified in the reference array will be appended to the end!
+If one would like to drop columns not specified, set $arg_ref to {keepRest =&gt; 0}.
+<a href="#reorder"><code>reorder()</code></a> changes the table itself, while subTable(undef, $colIDRefs) will return a new table.  <a href="#reorder"><code>reorder()</code></a> might also runs faster than subTable, as elements may not need to be copied.</p>
+</dd>
+<dt><strong><a name="colmap" class="item">int table::colMap ($colID, $fun)</a></strong></dt>
 
 <dd>
 <p>foreach element in column $colID, map a function $fun to it.
 It returns 1 upon success or undef otherwise.
 This is a handy way to format a column. E.g. if a column named URL contains URL strings, colMap(&quot;URL&quot;, sub {&quot;&lt;a href='$_'&gt;$_&lt;/a&gt;&quot;}) before <a href="#html"><code>html()</code></a> will change each URL into a clickable hyper link while displayed in a web browser.</p>
 </dd>
-</li>
-<dt><strong><a name="colsmap" class="item">int table::colsMap ($fun)</a></strong>
+<dt><strong><a name="colsmap" class="item">int table::colsMap ($fun)</a></strong></dt>
 
 <dd>
 <p>foreach row in the table, map a function $fun to it.
@@ -776,32 +679,23 @@ It returns 1 upon success or undef otherwise.
 colMap function only give $fun access to the particular element per row, while colsMap give $fun full access to all elements per row. E.g. if two columns named duration and unit ([&quot;2&quot;, &quot;hrs&quot;], [&quot;30&quot;, &quot;sec&quot;]). colsMap(sub {$_-&gt;[0] .= &quot; (&quot;.$_-&gt;[1].&quot;)&quot;; } will change each row into ([&quot;2 hrs&quot;, &quot;hrs&quot;], [&quot;30 sec&quot;, &quot;sec&quot;]).
 As show, in the $func, a column element should be referred as $_-&gt;[$colIndex].</p>
 </dd>
-</li>
-<dt><strong><a name="sort" class="item">int table::sort($colID1, $type1, $order1, $colID2, $type2, $order2, ... )</a></strong>
+<dt><strong><a name="sort" class="item">int table::sort($colID1, $type1, $order1, $colID2, $type2, $order2, ... )</a></strong></dt>
 
 <dd>
 <p>sort a table in place.
 First sort by column $colID1 in $order1 as $type1, then sort by $colID2 in $order2 as $type2, ...
 $type is 0 for numerical and 1 for others;
 $order is 0 for ascending and 1 for descending;</p>
-</dd>
-<dd>
 <p>In 1.62, instead of memorize these numbers, you can use constants instead (notice constants do not start with '$').
   Data::Table::NUMBER
   Data::Table::STRING
   Data::Table::ASC
   Data::Table::DESC</p>
-</dd>
-<dd>
 <p>Sorting is done in the priority of colID1, colID2, ...
 It returns 1 upon success or undef otherwise. 
 Notice the table is rearranged as a result! This is different from perl's list sort, which returns a sorted copy while leave the original list untouched, 
 the authors feel inplace sorting is more natural.</p>
-</dd>
-<dd>
 <p>table::sort can take a user supplied operator, this is useful when neither numerical nor alphabetic order is correct.</p>
-</dd>
-<dd>
 <pre>
   $Well=[&quot;A_1&quot;, &quot;A_2&quot;, &quot;A_11&quot;, &quot;A_12&quot;, &quot;B_1&quot;, &quot;B_2&quot;, &quot;B_11&quot;, &quot;B_12&quot;];
   $t = new Data::Table([$Well], [&quot;PlateWell&quot;], 1);
@@ -818,31 +712,23 @@ the authors feel inplace sorting is more natural.</p>
   print join(&quot; &quot;, $t-&gt;col(&quot;PlateWell&quot;));
   # prints the correct order: A_1 A_2 A_11 A_12 B_1 B_2 B_11 B_12</pre>
 </dd>
-</li>
-<dt><strong><a name="match_pattern" class="item">table table::match_pattern ($pattern, $countOnly)</a></strong>
+<dt><strong><a name="match_pattern" class="item">table table::match_pattern ($pattern, $countOnly)</a></strong></dt>
 
 <dd>
 <p>return a new table consisting those rows evaluated to be true by $pattern 
 upon success or undef otherwise. If $countOnly is set to 1, it simply returns the number of rows that matches the string without making a new copy of table. $countOnly is 0 by default.</p>
-</dd>
-<dd>
 <p>Side effect: @Data::Table::OK (should use $t-&gt;{OK} after 1.62) stores a true/false array for the original table rows. Using it, users can find out what are the rows being selected/unselected.
 In the $pattern string, a column element should be referred as $_-&gt;[$colIndex]. E.g., match_pattern('$_-&gt;[0]&gt;3 &amp;&amp; $_-&gt;[1]=~/^L') retrieve all the rows where its first column is greater than 3 and second column starts with letter 'L'. Notice it only takes colIndex, column names are not acceptable here!</p>
 </dd>
-</li>
-<dt><strong><a name="match_pattern_hash" class="item">table table::match_pattern_hash ($pattern, $countOnly)</a></strong>
+<dt><strong><a name="match_pattern_hash" class="item">table table::match_pattern_hash ($pattern, $countOnly)</a></strong></dt>
 
 <dd>
 <p>return a new table consisting those rows evaluated to be true by $pattern
 upon success or undef otherwise. If $countOnly is set to 1, it simply returns the number of rows that matches the string without making a new copy of table. $countOnly is 0 by default.</p>
-</dd>
-<dd>
 <p>Side effect: @Data::Table::OK stores a true/false array for the original table rows. Using it, users can find out what are the rows being selected/unselected.
 In the $pattern string, a column element should be referred as ${column_name}.
 <a href="#match_pattern_hash"><code>match_pattern_hash()</code></a> is added in 1.62. The difference between this method and match_pattern is each row is fed to the pattern as a hash %_.
 In the case of match_pattern, each row is fed as an array ref $_.  The pattern for <a href="#match_pattern_hash"><code>match_pattern_hash()</code></a> becomes much cleaner.</p>
-</dd>
-<dd>
 <p>If a table has two columns: Col_A as the 1st column and Col_B as the 2nd column, a filter &quot;Col_A&gt;2 AND Col_<strong>2&quot; is written before as
 	$t-</strong>match_pattern('$_-&gt;[0] &gt; 2 &amp;&amp; $_-&gt;[1] &lt;2');
 where we need to figure out $t-&gt;colIndex('Col_A') is 0 and $t-&gt;colIndex('Col_B') is 1, in order to build the pattern.
@@ -850,84 +736,139 @@ Now you can use column name directly in the pattern:
 	$t-&gt;match_pattern_hash('$_{Col_A} &gt;2 &amp;&amp; $_{Col_B} &lt;2');
 This method creates $t-&gt;{OK}, as well as @Data::Table::OK, same as <a href="#match_pattern"><code>match_pattern()</code></a>.</p>
 </dd>
-</li>
-<dt><strong><a name="match_string" class="item">table table::match_string ($s, $caseIgnore, $countOnly)</a></strong>
+<dt><strong><a name="match_string" class="item">table table::match_string ($s, $caseIgnore, $countOnly)</a></strong></dt>
 
 <dd>
 <p>return a new table consisting those rows contains string $s in any of its fields upon success, undef otherwise. if $caseIgnore evaluated to true, case will is be ignored (s/$s/i). If $countOnly is set to 1, it simply returns the number of rows that matches the string without making a new copy of table. $countOnly is 0 by default.</p>
-</dd>
-<dd>
 <p>Side effect: @Data::Table::OK stores a true/false array for the original table rows. 
 Using it, users can find out what are the rows being selected/unselected.
 The $s string is actually treated as a regular expression and 
 applied to each row element, therefore one can actually specify several keywords 
 by saying, for instance, match_string('One|Other').</p>
 </dd>
-</li>
-<dt><strong><a name="rowmask" class="item">table table::rowMask($mask, $complement)</a></strong>
+<dt><strong><a name="rowmask" class="item">table table::rowMask($mask, $complement)</a></strong></dt>
 
 <dd>
 <p>mask is reference to an array, where elements are evaluated to be true or false. The size of the mask must be equal to the nofRow of the table. return a new table consisting those rows where the corresponding mask element is true (or false, when complement is set to true).</p>
-</dd>
-<dd>
 <p>E.g., $t1=$tbl-&gt;match_string('keyword'); $t2=$tbl-&gt;rowMask(\@Data::Table::OK, 1) creates two new tables. $t1 contains all rows match 'keyword', while $t2 contains all other rows.</p>
-</dd>
-<dd>
 <p>mask is reference to an array, where elements are evaluated to be true or false. The size of the mask must be equal to the nofRow of the table. return
  a new table consisting those rows where the corresponding mask element is true (or false, when complement is set to true).</p>
-</dd>
-<dd>
 <p>E.g., $t1=$tbl-&gt;match_string('keyword'); $t2=$tbl-&gt;rowMask(\@Data::Table::OK, 1) creates two new tables. $t1 contains all rows match 'keyword', while 
 $t2 contains all other rows.</p>
 </dd>
-</li>
-<dt><strong><a name="group" class="item">table table::group($colsToGroupBy, $colsToCalculate, $funsToApply, $newColNames)</a></strong>
+<dt><strong><a name="each_group" class="item">table table::each_group($colsToGroupBy, $funsToApply)</a></strong></dt>
+
+<dd>
+<p>Primary key columns are specified in $colsToGroupBy. All rows are grouped by primary keys first (keys sorted as string). Then for each group, subroutines $funToAppy is applied to corresponding rows.
+$funToApply are passed with two parameters ($tableRef, $rowIDsRef). All rows sharing the key are passed in as a Data::Table object (with all columns and in the order of ascending row index) in the first parameter.
+The second optional parameter contains an array of row indices of the group members.  Since all rows in the passed-in table contains the same keys, the key value can be obtained from its first table row.</p>
+</dd>
+<dt><strong><a name="group" class="item">table table::group($colsToGroupBy, $colsToCalculate, $funsToApply, $newColNames, $keepRestCols)</a></strong></dt>
 
 <dd>
 <p>Primary key columns are specified in $colsToGroupBy. All rows are grouped by primary keys first. Then for each group, an array of subroutines (in $funsToAppy) are applied to corresponding columns and yield a list of new columns (specified in $newColNames).</p>
-</dd>
-<dd>
 <p>$colsToGroupBy, $colsToCalculate are references to array of colIDs. $funsToApply is a reference to array of subroutine references. $newColNames are a
 reference to array of new column name strings. If specified, the size of arrays pointed by $colsToCalculate, $funsToApply and $newColNames should be i
 dentical. A column may be used more than once in $colsToCalculate.</p>
-</dd>
-<dd>
+<p>$keepRestCols is default to 0 (introduced in 1.64), otherwise, the remaining columns are returned with the first encountered value of that group.</p>
 <p>E.g., an employee salary table $t contains the following columns: Name, Sex, Department, Salary. (see examples in the SYNOPSIS)</p>
-</dd>
-<dd>
 <p>$t2 = $t-&gt;group([&quot;Department&quot;,&quot;Sex&quot;],[&quot;Name&quot;, &quot;Salary&quot;], [sub {scalar @_}, \&amp;average], [&quot;Nof Employee&quot;, &quot;Average Salary&quot;]);</p>
+<p>Department, Sex are used together as the primary key columns, a new column &quot;Nof Employee&quot; is created by counting the number of employee names in each group, a new column &quot;Average Salary&quot; is created by averaging the Salary data falled into each group. As the result, we have the head count and average salary information for each (Department, Sex) pair. With your own functions (such as sum, product, average, standard deviation, etc), group method is very handy for accounting purpose.
+If primary key columns are not defined, all records will be treated as one group.</p>
+<p>$t2 = $t-&gt;group(undef,[&quot;Name&quot;, &quot;Salary&quot;], [sub {scalar @_}, \&amp;average], [&quot;Nof Employee&quot;, &quot;Average Salary&quot;]);</p>
+<p>The above statement will output the total number of employees and their average salary as one line.</p>
 </dd>
-<dd>
-<p>Department, Sex are used together as the primary key columns, a new column &quot;Nof Employee&quot; is created by counting the number of employee names in each group, a new column &quot;Average Salary&quot; is created by averaging the Salary data falled into each group. As the result, we have the head count and average salary information for each (Department, Sex) pair. With your own functions (such as sum, product, average, standard deviation, etc), group method is very handy for accounting purpose.</p>
-</dd>
-</li>
-<dt><strong><a name="pivot" class="item">table table::pivot($colToSplit, $colToSplitIsNumeric, $colToFill, $colsToGroupBy, $keepRestCols)</a></strong>
+<dt><strong><a name="pivot" class="item">table table::pivot($colToSplit, $colToSplitIsStringOrNumeric, $colToFill, $colsToGroupBy, $keepRestCols)</a></strong></dt>
 
 <dd>
-<p>Every unique values in a column (specified by $colToSplit) become a new column. undef value become &quot;NULL&quot;.  If the column type is numeric (specified by $colToSplitIsNumeric), the new column names are prefixed by &quot;oldColumnName=&quot;. The new cell element is filled by the value specified by $colToFill (was 1/0 before version 1.63).</p>
-</dd>
-<dd>
+<p>Every unique values in a column (specified by $colToSplit) become a new column. undef value become &quot;NULL&quot;.  $colToSplitIsStringOrNumeric is set to numeric (0 or Data::Table:NUMBER), the new column names are prefixed by &quot;oldColumnName=&quot;. The new cell element is filled by the value specified by $colToFill (was 1/0 before version 1.63).</p>
+<p>Note: yes, it seems I made an incompatible change in version 1.64, where $colToSplitIsStringOrNumber used to be $colToSplitIsNumeric, where 0 meant STRING and 1 meant NUMBER.  Now it is opposite.  However, I also added auto-type detection code, that this parameter essentially is auto-guessed and most old code should behave the same as before.</p>
 <p>When primary key columns are specified by $colsToGroupBy, all records sharing the same primary key collapse into one row, with values in $colToFill filling the corresponding new columns. If $colToFill is not specified, a cell is filled with the number of records fall into that cell.</p>
-</dd>
-<dd>
 <p>$colToSplit and $colToFill are colIDs. $colToSplitIsNumeric is 1/0. $colsToGroupBy is a reference to array of colIDs. $keepRestCols is 1/0, by default is 0. If $keepRestCols is off, only primary key columns and new columns are exported, otherwise, all the rest columns are exported as well.</p>
-</dd>
-<dd>
 <p>E.g., applying pivot method to the resultant table of the example of the group method.</p>
-</dd>
-<dd>
 <p>$t2-&gt;pivot(&quot;Sex&quot;, 0, &quot;Average Salary&quot;,[&quot;Department&quot;]);</p>
+<p>This creates a 2x3 table, where Departments are use as row keys, Sex (female and male) become two new columns. &quot;Average Salary&quot; values are used to fill the new table elements. Used together with group method, pivot method is very handy for accounting type of analysis.
+If $colsToGroupBy is left as undef, all rows are treated as one group.  If $colToSplit is left as undef, the method will generate a column named &quot;(all)&quot; that matches all records share the corresponding primary key.</p>
 </dd>
+<dt><strong><a name="melt" class="item">table table::melt($keyCols, $variableCols, $arg_ref)</a></strong></dt>
+
 <dd>
-<p>This creates a 2x3 table, where Departments are use as row keys, Sex (female and male) become two new columns. &quot;Average Salary&quot; values are used to fill the new table elements. Used together with group method, pivot method is very handy for accounting type of analysis.</p>
+<p>The idea of <a href="#melt"><code>melt()</code></a> and <a href="#cast"><code>cast()</code></a> are taken from Hadley Wickham's Reshape package in R language.
+A table is first <a href="#melt"><code>melt()</code></a> into a tall-skiny format, where measurements are stored in the format of a variable-value pair per row.
+Such a format can then be easily <a href="#cast"><code>cast()</code></a> into various contingency tables.</p>
+<p>One needs to specify the columns consisting of primary keys, columns that are consider as variable columns.  The output variable column is named 'variable' unless specified by $arg_ref{variableColName}.  The output value column is named 'value', unless specified in $arg_ref{valueColName}.  By default NULL values are not output, unless $arg_ref{skip_NULL} is set to false.</p>
+<p>For each object (id), we measure variable x1 and x2 at two time points
+$t = new Data::Table([[1,1,5,6], [1,2,3,5], [2,1,6,1], [2,2,2,4]], ['id','time','x1','x2'], Data::Table::ROW_BASED);
+# id	time	x1	x2
+# 1	1	5	6
+# 1	2	3	5
+# 2	1	6	1
+# 2	2	2	4</p>
+<p># melting a table into a tall-and-skinny table
+$t2 = $t-&gt;melt(['id','time']);
+#id      time    variable        value
+# 1       1       x1      5
+# 1       1       x2      6
+# 1       2       x1      3
+# 1       2       x2      5
+# 2       1       x1      6
+# 2       1       x2      1
+# 2       2       x1      2
+# 2       2       x2      4</p>
+<p># casting the table, &amp;average is a method to calculate mean
+# for each object (id), we calculate average value of x1 and x2 over time
+$t3 = $t2-&gt;cast(['id'],'variable',Data::Table::STRING,'value', \&amp;average);
+# id      x1      x2
+# 1       4       5.5
+# 2       4       2.5</p>
 </dd>
-</li>
+<dt><strong><a name="cast" class="item">table table::cast($colsToGroupBy, $colToSplit, $colToSplitIsStringOrNumeric, $colToCalculate, $funToApply)</a></strong></dt>
+
+<dd>
+<p>see <a href="#melt"><code>melt()</code></a>, as <a href="#melt"><code>melt()</code></a> and <a href="#cast"><code>cast()</code></a> are meant to use together.</p>
+<p>The table has been melten before.  <a href="#cast"><code>cast()</code></a> group the table according to primary keys specified in $colsToGroupBy. For each group of objects sharing the same id,
+it further groups values (specified by $colToCalculate) according to unique variable names (specified by $colToSplit).  Then it applies subroutine $funToApply to obtain an aggregate value.
+For the output, each unique primary key will be a row, each unique variable name will become a column, the cells are the calculated aggregated value.</p>
+<p>If $colsToGroupBy is undef, all rows are treated as within the same group.  If $colToSplit is undef, a new column &quot;(all)&quot; is used to hold the results.</p>
+<p>$t = new Data::Table( # create an employ salary table
+    [
+      ['Tom', 'male', 'IT', 65000],
+      ['John', 'male', 'IT', 75000],
+      ['Tom', 'male', 'IT', 65000],
+      ['John', 'male', 'IT', 75000],
+      ['Peter', 'male', 'HR', 85000],
+      ['Mary', 'female', 'HR', 80000],
+      ['Nancy', 'female', 'IT', 55000],
+      ['Jack', 'male', 'IT', 88000],
+      ['Susan', 'female', 'HR', 92000]
+    ],
+    ['Name', 'Sex', 'Department', 'Salary'], Data::Table::ROW_BASED);</p>
+<p># get a Department x Sex contingency table, get average salary across all four groups
+print $t-&gt;cast(['Department'], 'Sex', Data::Table::STRING, 'Salary', \&amp;average)-&gt;<a href="#csv"><code>csv(1)</code></a>;
+Department,female,male
+IT,55000,73600
+HR,86000,85000
+# get average salary for each department
+print $t-&gt;cast(['Department'], undef, Data::Table::STRING, 'Salary', \&amp;average)-&gt;<a href="#csv"><code>csv(1)</code></a>;
+Department,(all)
+IT,70500
+HR,85666.6666666667</p>
+<p># get average salary for each gender
+print $t-&gt;cast(['Sex'], undef, Data::Table::STRING, 'Salary', \&amp;average)-&gt;<a href="#csv"><code>csv(1)</code></a>;
+Sex,(all)
+male,75500
+female,75666.6666666667</p>
+<p># get average salary for all records
+print $t-&gt;cast(undef, undef, Data::Table::STRING, 'Salary', \&amp;average)-&gt;<a href="#csv"><code>csv(1)</code></a>;
+(all)
+75555.5555555556</p>
+</dd>
 </dl>
 <p>
 </p>
 <h2><a name="table_table_manipulations">Table-Table Manipulations</a></h2>
 <dl>
-<dt><strong><a name="rowmerge" class="item">int table::rowMerge ($tbl, $argRef)</a></strong>
+<dt><strong><a name="rowmerge" class="item">int table::rowMerge ($tbl, $argRef)</a></strong></dt>
 
 <dd>
 <p>Append all the rows in the table object $tbl to the original rows.
@@ -935,12 +876,9 @@ Before 1.62, the merging table $tbl must have the same number of columns as the 
 It returns 1 upon success, undef otherwise.
 The table object $tbl should not be used afterwards, since it becomes part of
 the new table.</p>
-</dd>
-<dd>
 <p>Since 1.62, you may provide {byName =&gt;1, addNewCol=&gt;1} as $argRef.  If byName is set to 1, the columns in in $tbl do not need to be in the same order as they are in the first table, instead the column name is used for the matching.  If addNewCol is set to 1, if $tbl contains a new column name that does not already exist in the first table, this new column will be automatically added to the resultant table.  Typically, you want to specify there two options simultaneously.</p>
 </dd>
-</li>
-<dt><strong><a name="colmerge" class="item">int table::colMerge ($tbl, $argRef)</a></strong>
+<dt><strong><a name="colmerge" class="item">int table::colMerge ($tbl, $argRef)</a></strong></dt>
 
 <dd>
 <p>Append all the columns in table object $tbl to the original columns. 
@@ -948,39 +886,25 @@ Table $tbl must have the same number of rows as the original.
 It returns 1 upon success, undef otherwise.
 Table $tbl should not be used afterwards, since it becomes part of
 the new table.</p>
-</dd>
-<dd>
 <p>Since 1.62, you can specify {renameCol =&gt; 1} as $argRef. This is to auto fix any column name collision.  If $tbl contains a column that already exists in the first table, it will be renamed (by a suffix _2) to avoid the collision.</p>
 </dd>
-</li>
-<dt><strong><a name="join" class="item">table table::join ($tbl, $type, $cols1, $cols2, $argRef)</a></strong>
+<dt><strong><a name="join" class="item">table table::join ($tbl, $type, $cols1, $cols2, $argRef)</a></strong></dt>
 
 <dd>
 <p>Join two tables. The following join types are supported (defined by $type):</p>
-</dd>
-<dd>
 <p>0: inner join
 1: left outer join
 2: right outer join
 3: full outer join</p>
-</dd>
-<dd>
 <p>In 1.62, instead of memorize these numbers, you can use constants instead (notice constants do not start with '$').
   Data::Table::INNER_JOIN
   Data::Table::LEFT_JOIN
   Data::Table::RIGHT_JOIN
   Data::Table::FULL_JOIN</p>
-</dd>
-<dd>
 <p>$cols1 and $cols2 are references to array of colIDs, where rows with the same elements in all listed columns are merged. As the result table, columns listed in $cols2 are deleted, before a new table is returned.</p>
-</dd>
-<dd>
 <p>The implementation is hash-join, the running time should be linear with respect to the sum of number of rows in the two tables (assume both tables fit in memory).</p>
-</dd>
-<dd>
 <p>If the non-key columns of the two tables share the same name, the routine will fail, as the result table cannot contain two columns of the same name.  In 1.62, one can specify {renameCol=&gt;1} as $argRef, so that the second column will be automatically renamed (with suffix _2) to avoid collision.</p>
 </dd>
-</li>
 </dl>
 <p>
 </p>
@@ -990,45 +914,35 @@ other methods in the Table class. Users should avoid using them.
 Nevertheless, they are listed here for developers who 
 would like to understand the code and may derive a new class from Data::Table.</p>
 <dl>
-<dt><strong><a name="int_table_rotate" class="item">int table::rotate</a></strong>
+<dt><strong><a name="int_table_rotate" class="item">int table::rotate</a></strong></dt>
 
 <dd>
 <p>convert the internal structure of a table between row-based and column-based.
 return 1 upon success, undef otherwise.</p>
 </dd>
-</li>
-<dt><strong><a name="csvescape" class="item">string csvEscape($string, {delimiter=&gt;, qualifier})</a></strong>
+<dt><strong><a name="csvescape" class="item">string csvEscape($string, {delimiter=&gt;, qualifier})</a></strong></dt>
 
 <dd>
 <p>Encode a scalar into a CSV-formatted field.</p>
-</dd>
-<dd>
 <p>optional named arguments: delimiter and qualifier, in case user wants to use characters other than the defaults. 
 The default delimiter and qualifier is taken from $Data::Table::DEFAULTS{'CSV_DELIMITER'} (defaults to ',') and $Data::Table::DEFAULTS{'CSV_QUALIFIER'} (defaults to '&quot;'), respectively.</p>
-</dd>
-<dd>
 <p>Please note that this function only escape one element in a table. To escape the whole table row, you need to
   join($delimiter, map {csvEscape($_)} @row . $endl;
 $endl refers to End-of-Line, which you may or may not want to add, and it is OS-dependent. Therefore, csvEscape method is kept to the simplest form as an element transformer.</p>
 </dd>
-</li>
-<dt><strong><a name="parsecsv" class="item">refto_array <code>parseCSV($string)</code></a></strong>
+<dt><strong><a name="parsecsv" class="item">refto_array <code>parseCSV($string)</code></a></strong></dt>
 
 <dd>
 <p>Break a CSV encoded string to an array of scalars (check it out, we did it the cool way).</p>
-</dd>
-<dd>
 <p>optional argument size: specify the expected number of fields after csv-split.
 optional named arguments: delimiter and qualifier, in case user wants to use characters other than the defaults.
 respectively. The default delimiter and qualifier is taken from $Data::Table::DEFAULTS{'CSV_DELIMITER'} (defaults to ',') and $Data::Table::DEFAULTS{'CSV_QUALIFIER'} (defaults to '&quot;'), respectively.</p>
 </dd>
-</li>
-<dt><strong><a name="tsvescape" class="item">string <code>tsvEscape($rowRef)</code></a></strong>
+<dt><strong><a name="tsvescape" class="item">string <code>tsvEscape($rowRef)</code></a></strong></dt>
 
 <dd>
 <p>Encode a scalar into a TSV-formatted string.</p>
 </dd>
-</li>
 </dl>
 <p>
 </p>
@@ -1073,6 +987,18 @@ interface between databases, web pages, CSV/TSV files, graphics packages, etc.</
   Same for TSV</pre>
 <p>
 </p>
+<h2><a name="interface_to_excel_xls_xlsx">Interface to Excel XLS/XLSX</a></h2>
+<p>Read in two tables from NorthWind.xls file, writes them out to XLSX format.  See Data::Table::Excel module for details.</p>
+<pre>
+  use Data::Table::Excel;</pre>
+<pre>
+  my ($tableObjects, $tableNames)=xls2tables(&quot;NorthWind.xls&quot;);
+  $t_category = $tableObjects[0];
+  $t_product = $tableObjects[1];</pre>
+<pre>
+  tables2xlsx(&quot;NorthWind.xlsx&quot;, [$t_category, $t_product]);</pre>
+<p>
+</p>
 <h2><a name="interface_to_graphics_package">Interface to Graphics Package</a></h2>
 <pre>
   use GD::Graph::points;</pre>
@@ -1100,7 +1026,7 @@ Perl.</p>
 <hr />
 <h1><a name="see_also">SEE ALSO</a></h1>
 <pre>
-  DBI, GD::Graph.
+  DBI, GD::Graph, Data::Table::Excel.
 
 </pre>
 

@@ -15,7 +15,7 @@ require AutoLoader;
 # Do not simply export all your public functions/methods/constants.
 @EXPORT = qw(
 );
-$VERSION = '1.63';
+$VERSION = '1.65';
 %DEFAULTS = (
   "CSV_DELIMITER"=>',', # controls how to read/write CSV file
   "CSV_QUALIFIER"=>'"',
@@ -38,6 +38,9 @@ use constant INNER_JOIN => 0;
 use constant LEFT_JOIN => 1;
 use constant RIGHT_JOIN => 2;
 use constant FULL_JOIN => 3;
+use constant OS_UNIX => 0;
+use constant OS_PC => 1;
+use constant OS_MAC => 2;
 
 sub new {
   my ($pkg, $data, $header, $type, $enforceCheck) = @_;
@@ -379,10 +382,13 @@ sub delRow {
 sub delRows {
   my ($self, $rowIdcsRef) = @_;
   my $rowIdx;
+  $self->rotate() if $self->{type};
+  my @dels = @{$self->{data}}[@$rowIdcsRef];
   my @indices = sort { $b <=> $a } @$rowIdcsRef;
-  my @dels=();
+  #my @dels=();
   foreach $rowIdx (@indices) {
-    push @dels, $self->delRow($rowIdx);
+    #push @dels, $self->delRow($rowIdx);
+    $self->delRow($rowIdx);
   }
   return @dels;
 }   
@@ -429,17 +435,17 @@ sub delCol {
   my ($self, $colID) = @_;
   my $c=$self->checkOldCol($colID);
   return undef unless defined $c;
+  $self->rotate() unless $self->{type};
   my $header=$self->{header};
   my $name=$self->{header}->[$c];
   splice @$header, $c, 1;
-  $self->rotate() unless $self->{type};
   my $data=$self->{data};
+  my @dels=splice @$data, $c, 1;
   delete $self->{colHash}->{$name};
-  for (my $i = 0; $i < scalar @$header; $i++) {
+  for (my $i = $c; $i < scalar @$header; $i++) {
     my $elm = $header->[$i];
     $self->{colHash}->{$elm} = $i;
   }
-  my @dels=splice @$data, $c, 1;
   return shift @dels;
 }                                                                               
 
@@ -447,11 +453,12 @@ sub delCols {
   my ($self, $colIDsRef) = @_;
   my $idx;
   my @indices = map { $self->colIndex($_) } @$colIDsRef;
+  $self->rotate() unless $self->{type};
+  my @dels = @{$self->{data}}[@indices];
   @indices = sort { $b <=> $a } @indices;
-
-  my @dels=();
+  #my @dels=();
   foreach my $colIdx (@indices) {
-    push @dels, $self->delCol($colIdx);
+    $self->delCol($colIdx);
   }
   return @dels;
 }  
@@ -835,6 +842,12 @@ sub match_pattern {
     if ($self->{OK}->[$i]) {
       push @data, $self->{data}->[$i] unless $countOnly;
       $cnt++;
+      $self->{OK}->[$i] = 1;
+      $Data::Table::OK[$i] = 1;
+    } else {
+      # in case sometimes eval results is '' instead of 0
+      $self->{OK}->[$i] = 0;
+      $Data::Table::OK[$i] = 0;
     }
   }
   return $cnt if $countOnly;
@@ -863,6 +876,12 @@ sub match_pattern_hash {
     if ($self->{OK}->[$i]) {
       push @data, $self->{data}->[$i] unless $countOnly;
       $cnt++;
+      $self->{OK}->[$i] = 1;
+      $Data::Table::OK[$i] = 1;
+    } else {
+      # in case sometimes eval results is '' instead of 0
+      $self->{OK}->[$i] = 0;
+      $Data::Table::OK[$i] = 0;
     }
   }
   return $cnt if $countOnly;
@@ -888,8 +907,8 @@ sub match_string {
   my $cnt=0;
 
   foreach my $row_ref (@{$self->data}) {
-    push @Data::Table::OK, undef;
-    push @{$self->{OK}}, undef;
+    push @Data::Table::OK, 0;
+    push @{$self->{OK}}, 0;
     foreach my $elm (@$row_ref) {
       next unless defined($elm);
         
@@ -1042,11 +1061,14 @@ sub colMerge {
 }
 
 sub subTable {
-  my ($self, $rowIdcsRef, $colIDsRef) = @_;
+  my ($self, $rowIdcsRef, $colIDsRef, $arg_ref) = @_;
   my @newdata=();
   my @newheader=();
   # to avoid the side effect of modifying $colIDsRef, 4/30/2012
-  my @rowIdcs = defined $rowIdcsRef ? @$rowIdcsRef : 0..($self->nofRow()-1);
+  my $useRowMask = 0;
+  $useRowMask = $arg_ref->{useRowMask} if defined $arg_ref->{useRowMask};
+  my @rowIdcs = ();
+  @rowIdcs = defined $rowIdcsRef ? @$rowIdcsRef : 0..($self->nofRow()-1) unless $useRowMask;
   my @colIDs = defined $colIDsRef ? @$colIDsRef : 0..($self->nofCol()-1);
   ##$rowIdcsRef = [0..($self->nofRow()-1)] unless defined $rowIdcsRef;
   #$colIDsRef = [0..($self->nofCol()-1)] unless defined $colIDsRef; 
@@ -1055,11 +1077,18 @@ sub subTable {
     #return undef unless defined $colIDsRef;
     push @newheader, $self->{header}->[$colIDs[$i]];
   }
+  if ($useRowMask) {
+    my @OK = @$rowIdcsRef;
+    my $n = $self->nofRow;
+    for (my $i = 0; $i < $n; $i++) {
+      push @rowIdcs, $i if $OK[$i];
+    }
+  }
   if ($self->{type}) {
     for (my $i = 0; $i < scalar @colIDs; $i++) {
       my @one=();
       for (my $j = 0; $j < scalar @rowIdcs; $j++) {
-	return undef unless defined $self->checkOldRow($rowIdcs[$j]);
+	      return undef unless defined $self->checkOldRow($rowIdcs[$j]);
         push @one, $self->{data}->[$colIDs[$i]]->[$rowIdcs[$j]];
       }
       push @newdata, \@one;
@@ -1075,6 +1104,53 @@ sub subTable {
     }
   }
   return new Data::Table(\@newdata, \@newheader, $self->{type});
+}
+
+sub reorder {
+  my ($self, $colIDsRef, $arg_ref) = @_;
+  return unless defined $colIDsRef;
+  $arg_ref = {keepRest => 1} unless defined $arg_ref;
+  my @newdata=();
+  my @newheader=();
+  my @colIDs = ();
+  my %inNew = ();
+  for (my $i = 0; $i < scalar @$colIDsRef; $i++) {
+    my $idx = $self->checkOldCol($colIDsRef->[$i]);
+    confess "Invalide column $colIDsRef->[$i]" unless defined $idx;
+    $colIDs[$i] = $idx;
+    $inNew{$idx} = 1;
+    #return undef unless defined $colIDsRef;
+    push @newheader, $self->{header}->[$idx];
+  }
+  if ($arg_ref->{keepRest}) {
+    for (my $i = 0; $i<$self->nofCol; $i++) {
+      unless (exists $inNew{$i}) {
+        push @colIDs, $i;
+        push @newheader, $self->{header}->[$i];
+      }
+    }
+  }
+  
+  if ($self->{type}) {
+    for (my $i = 0; $i < scalar @colIDs; $i++) {
+      push @newdata, $self->{data}->[$colIDs[$i]];
+    }
+  } else {
+    my $n = $self->nofRow;
+    for (my $i = 0; $i < $n; $i++) {
+      my @one=();
+      for (my $j = 0; $j < scalar @colIDs; $j++) {
+        push @one, $self->{data}->[$i]->[$colIDs[$j]];
+      }
+      push @newdata, \@one;
+    }
+  }
+  $self->{header} = \@newheader;
+  $self->{colHash} = ();
+  for (my $i = 0; $i < scalar @colIDs; $i++) {
+    $self->{colHash}->{$newheader[$i]} = $i;
+  }
+  $self->{data} = \@newdata;
 }
 
 sub clone {
@@ -1520,14 +1596,130 @@ sub join {
   return new Data::Table(\@ones, $header, 0);
 }
 
-sub group {
-  my ($self, $colsToGroupBy, $colsToCalculate, $funsToApply, $newColNames) = @_;
-  confess "colsToGroupBy has to be specified!" unless defined($colsToGroupBy) && ref($colsToGroupBy) eq "ARRAY";
+sub melt {
+  my ($self, $keyCols, $variableCols, $arg_ref) = @_;
+  confess "key columns have to be specified!" unless defined($keyCols) && ref($keyCols) eq "ARRAY";
+  my $variableColName = 'variable';
+  my $valueColName = 'value';
+  my $skip_NULL = 1;
+  $variableColName = $arg_ref->{'variableColName'} if (defined($arg_ref) && defined($arg_ref->{'variableColName'}));
+  $valueColName = $arg_ref->{'valueColName'} if (defined($arg_ref) && defined($arg_ref->{'valueColName'}));
+  $skip_NULL = $arg_ref->{'skip_NULL'} if (defined($arg_ref) && defined($arg_ref->{'skip_NULL'}));
   my @X = ();
+  my %X = ();
+  foreach my $x (@$keyCols) {
+    my $x_idx = $self->checkOldCol($x);
+    confess "Unknown column ". $x unless defined($x_idx);
+    push @X, $x_idx;
+    $X{$x_idx} = 1;
+  }
+  my @Y = ();
+  my %Y = ();
+  unless (defined($variableCols)) {
+    $variableCols = [];
+    foreach my $x (0 .. $self->nofCol-1) {
+      next if $X{$x};
+      push @$variableCols, $x;
+    }
+  }
+  unless (scalar @$variableCols) {
+    confess "Variable columns have to be specified!";
+  }
+  foreach my $y (@$variableCols) {
+    my $y_idx = $self->checkOldCol($y);
+    confess "Unknown column ". $y unless defined($y_idx);
+    push @Y, $y_idx;
+    $Y{$y_idx} = 1;
+  }
+
+  my @newHeader = ();
+  my @header = $self->header;
+  for (my $i=0; $i<= $#X; $i++) {
+    push @newHeader, $header[$X[$i]];
+  }
+  push @newHeader, $variableColName;
+  push @newHeader, $valueColName;
+  my @newRows = ();
+  for (my $i=0; $i<$self->nofRow; $i++) {
+    my $row = $self->rowRef($i);
+    my @key = @$row[@X];
+    foreach my $y (@Y) {
+      next if (!defined($row->[$y]) && $skip_NULL);
+      my @one = @key;
+      push @one, $header[$y], $row->[$y];
+      push @newRows, \@one;
+    }
+  }
+  return new Data::Table(\@newRows, \@newHeader, 0);
+}
+
+sub cast {
+  my ($self, $colsToGroupBy, $colToSplit, $colToSplitIsStringOrNumeric, $colToCalculate, $funToApply) = @_;
+  #$colToSplit = 'variable' unless defined $colToSplit;
+  #$colToCalculate = 'value' unless defined $colToCalculate;
+  $colsToGroupBy = [] unless defined $colsToGroupBy;
+  my $tmpColName = '_calcColumn';
+  my $cnt = 2;
+  my $s = $tmpColName;
+  while ($self->hasCol($s)) {
+    $s = $tmpColName."_".$cnt++;
+  }
+  $tmpColName = $s;
+  my %grpBy = ();
+  map {$grpBy{$_} = 1} @$colsToGroupBy;
+  my @grpBy = @$colsToGroupBy;
+  confess "colToSplit cannot be contained in the list of colsToGroupBy!" if defined $colToSplit and $grpBy{$colToSplit};
+  push @grpBy, $colToSplit if defined $colToSplit;
+  my $t = $self->group(\@grpBy, [$colToCalculate], [$funToApply], [$tmpColName]);
+  $t = $t->pivot($colToSplit, $colToSplitIsStringOrNumeric, $tmpColName, $colsToGroupBy);
+  return $t;
+}
+
+sub each_group {
+  my ($self, $colsToGroupBy, $funToApply) = @_;
+  $colsToGroupBy = [] unless defined $colsToGroupBy;
+  confess "colsToGroupBy has to be specified!" unless defined($colsToGroupBy) && ref($colsToGroupBy) eq "ARRAY";
+  confess "funToApply has to be a reference to CODE!" unless ref($funToApply) eq "CODE";
+  unless (scalar @$colsToGroupBy) { # all rows are treated as one group
+    $funToApply->($self->clone, 0 .. $self->nofRow - 1);
+    return;
+  }
+  my @X = ();
+  my %grpBy = ();
   foreach my $x (@$colsToGroupBy) {
     my $x_idx = $self->checkOldCol($x);
     confess "Unknown column ". $x unless defined($x_idx);
     push @X, $x_idx;
+    $grpBy{$x_idx} = 1;
+  }
+  my %X = ();
+  for (my $i=0; $i<$self->nofRow; $i++) {
+    my $myRow = $self->rowRef($i);
+    #my @val = ();
+    #foreach my $x (@X) {
+    #  push @val, defined($myRow->[$x])?$myRow->[$x]:"";
+    #}
+    my @val = map {tsvEscape($_)} @{$myRow}[@X];
+    my $myKey = CORE::join("\t", @val);
+    push @{$X{$myKey}}, $i;
+  }
+  foreach my $myKey ( sort {$a cmp $b} keys %X) {
+    $funToApply->($self->subTable($X{$myKey}, undef), $X{$myKey});
+  }
+}
+
+sub group {
+  my ($self, $colsToGroupBy, $colsToCalculate, $funsToApply, $newColNames, $keepRestCols) = @_;
+  $keepRestCols = 0 unless defined($keepRestCols);
+  $colsToGroupBy = [] unless defined $colsToGroupBy;
+  confess "colsToGroupBy has to be specified!" unless defined($colsToGroupBy) && ref($colsToGroupBy) eq "ARRAY";
+  my @X = ();
+  my %grpBy = ();
+  foreach my $x (@$colsToGroupBy) {
+    my $x_idx = $self->checkOldCol($x);
+    confess "Unknown column ". $x unless defined($x_idx);
+    push @X, $x_idx;
+    $grpBy{$x_idx} = 1;
   }
   my @Y = ();
   my %Y= ();
@@ -1549,10 +1741,11 @@ sub group {
   my $cnt = 0;
   my $i;
   for ($i=0; $i<$self->nofCol; $i++) {
-    next if defined($Y{$i});
-    push @X_name, $i;
-    push @header, $self->{header}->[$i];
-    $cnt += 1;
+    if ($grpBy{$i} || ($keepRestCols && !defined($Y{$i}))) {
+      push @X_name, $i;
+      push @header, $self->{header}->[$i];
+      $cnt += 1;
+    }
   }
   if (defined($newColNames)) {
     foreach my $y (@$newColNames) {
@@ -1560,7 +1753,6 @@ sub group {
       $cnt += 1;
     }
   }
-
   my @ones = ();
   my %X = ();
   my %val = ();
@@ -1569,11 +1761,15 @@ sub group {
   for ($i=0; $i<$self->nofRow; $i++) {
     my @row = ();
     my $myRow = $self->rowRef($i);
-    my @val = ();
-    foreach my $x (@X) {
-      push @val, defined($myRow->[$x])?$myRow->[$x]:"";
+    my $myKey = '(all)';
+    if (@X) {
+      # if colsToGroupBy is not specified, all rows has myKey = '(all)', therefore treated as one group
+      my @val = map {tsvEscape($_)} @{$myRow}[@X];
+      #foreach my $x (@X) {
+      #  push @val, defined($myRow->[$x])?$myRow->[$x]:"";
+      #}
+      $myKey = CORE::join("\t", @val);
     }
-    my $myKey = CORE::join("\t", @val);
     if (scalar @Y) {
       my %Y = ();
       foreach my $y (@Y) {
@@ -1603,7 +1799,8 @@ sub group {
         if (ref($funsToApply->[$i]) eq "CODE") {
           $ones[$rowIdx{$s}]->[$cnt+$i] = $funsToApply->[$i]->(@{$val{$Y[$i]}->{$s}});
         } else {
-          confess "The ${i}th element in the function array is not a valid reference!\n";
+          $ones[$rowIdx{$s}]->[$cnt+$i] = scalar @{$val{$Y[$i]}->{$s}};
+          #confess "The ${i}th element in the function array is not a valid reference!\n";
         }
       }
     }
@@ -1613,17 +1810,19 @@ sub group {
 }
 
 sub pivot {
-  my ($self, $colToSplit, $colToSplitIsNumeric, $colToFill, $colsToGroupBy, $keepRestCols) = @_;
+  my ($self, $colToSplit, $colToSplitIsStringOrNumeric, $colToFill, $colsToGroupBy, $keepRestCols) = @_;
   $keepRestCols = 0 unless defined($keepRestCols);
-  $colToSplitIsNumeric = 1 unless defined($colToSplitIsNumeric);
-  my $y = $self->checkOldCol($colToSplit);
+  $colToSplitIsStringOrNumeric = 0 unless defined($colToSplitIsStringOrNumeric);
+  $colsToGroupBy = [] unless defined $colsToGroupBy;
+  my $y = undef;
+  $y = $self->checkOldCol($colToSplit) if defined $colToSplit;
   my $y_name = defined($y)?$self->{header}->[$y]:undef;
   confess "Unknown column ". $colToSplit if (!defined($y) && defined($colToSplit));
   my $z = undef;
   $z = $self->checkOldCol($colToFill) if defined($colToFill);
   my $z_name = defined($z)?$self->{header}->[$z]:undef;
   confess "Unknown column ". $colToFill if (!defined($z) && defined($colToFill));
-  confess "Cannot take colToFill, if colToSplit is 'undef'" if (defined($z) && !defined($y));
+  #confess "Cannot take colToFill, if colToSplit is 'undef'" if (defined($z) && !defined($y));
   my @X = ();
   if (defined($colsToGroupBy)) {
     foreach my $x (@$colsToGroupBy) {
@@ -1632,21 +1831,33 @@ sub pivot {
       push @X, $self->{header}->[$x_idx];
     }
   }
-  my ($val, @Y, %Y);
+  my (@Y, %Y);
 
   if (defined($colToSplit)) {
     @Y = $self->col($y);
     %Y = ();
-    foreach $val (@Y) {
+    foreach my $val (@Y) {
       $val = "NULL" unless defined($val);
       $Y{$val} = 1;
     }
-  }
-
-  if ($colToSplitIsNumeric) {
-    @Y = sort { $a <=> $b } (keys %Y);
   } else {
+    @Y = ('(all)') x $self->nofCol;
+    %Y = ('(all)' => 1);
+    $colToSplitIsStringOrNumeric = 1;
+  }
+  foreach my $y (keys %Y) {
+    if ($y =~ /\D/ && $colToSplitIsStringOrNumeric == 0) {
+      $colToSplitIsStringOrNumeric = 1;
+      last;
+    } elsif ($y =~ /^\d+$/ && $colToSplitIsStringOrNumeric == 1) {
+      $colToSplitIsStringOrNumeric = 0;
+      last;
+    }
+  }
+  if ($colToSplitIsStringOrNumeric) {
     @Y = sort { $a cmp $b } (keys %Y);
+  } else {
+    @Y = sort { $a <=> $b } (keys %Y);
   }
 
   my @header = ();
@@ -1673,12 +1884,12 @@ sub pivot {
     $Y{$s} = $cnt++;
   }
 
-  if (defined($y)) {
-    foreach $val (@Y) {
-      push @header, ($colToSplitIsNumeric?"$y_name=":"") . $val;
+  #if (defined($y)) {
+    foreach my $val (@Y) {
+      push @header, ($colToSplitIsStringOrNumeric?"":"$y_name=") . $val;
       $Y{$val} = $cnt++;
     }
-  }
+  #}
 
   my @ones = ();
   my %X = ();
@@ -1686,11 +1897,11 @@ sub pivot {
   for ($i=0; $i<$self->nofRow; $i++) {
     my @row = ();
     my $myRow = $self->rowHashRef($i);
-    my $myKey = ''; # set to '' to work with total agreegation (group all rows into one)
+    my $myKey = '(all)'; # set to '' to work with total agreegation (group all rows into one)
     if (scalar @X) {
       my @val = ();
       foreach my $x (@X) {
-        push @val, defined($myRow->{$x})?$myRow->{$x}:"";
+        push @val, tsvEscape($myRow->{$x});
       }
       $myKey = CORE::join("\t", @val);
     }
@@ -1699,19 +1910,19 @@ sub pivot {
         push @row, $myRow->{$s};
       }
       for (my $j = scalar @row; $j<$cnt; $j++) {
-        $row[$j] = 0;
+        $row[$j] = undef;
       }
       #$row[$cnt-1] = undef if (scalar @row < $cnt);
     }
-    if (defined($y)) {
-      my $val = $myRow->{$y_name};
+    #if (defined($y)) {
+      my $val = defined($y) ? $myRow->{$y_name} : "(all)";
       $val = "NULL" unless defined($val);
       if (!defined($X{$myKey})) {
         $row[$Y{$val}] = defined($z)?$myRow->{$z_name}: $row[$Y{$val}]+1;
       } else {
         $ones[$X{$myKey}][$Y{$val}] = defined($z)?$myRow->{$z_name}: $ones[$X{$myKey}][$Y{$val}]+1;
       }
-    }
+    #}
     unless (defined($X{$myKey})) {
       push @ones, \@row;
       $X{$myKey} = $rowIdx++;
@@ -1861,6 +2072,9 @@ Data::Table - Data type related to database tables, spreadsheets, CSV/TSV files,
 
 =head1 SYNOPSIS
 
+  News: The package now includes "Perl Data::Table Cookbook" (PDF), which may serve as a better learning material.
+  To download the free Cookbook, visit https://sites.google.com/site/easydatabase/
+  
   # some cool ways to use Table.pm
   use Data::Table;
   
@@ -2099,15 +2313,16 @@ $type: 0 or 1 for row-based/column-based spreadsheet.
 $enforceCheck: 1/0 to turn on/off initial checking on the size of each row/column to make sure the data arguement indeed points to a valid structure.
 In 1.63, we introduce constants Data::Table::ROW_BASED and Data::Table::COL_BASED as synonyms for $type.  To create an empty Data::Table, use new Data::Table([], [], Data::Table::ROW_BASED);
 
-=item table table::subTable ($rowIdcsRef, $colIDsRef)
+=item table table::subTable ($rowIdcsRef, $colIDsRef, $arg_ref)
 
 create a new table, which is a subset of the original.
 It returns a table object.
-$rowIdcsRef: points to an array of row indices.
+$rowIdcsRef: points to an array of row indices (or a true/false row mask array).
 $colIDsRef: points to an array of column IDs.
 The function make a copy of selected elements from the original table. 
 Undefined $rowIdcsRef or $colIDsRef is interpreted as all rows or all columns.
 The elements in $colIDsRef may be modified as a side effect before version 1.62, fixed in 1.62.
+If $arg_ref->{useRowMask} is set to 1, $rowIdcsRef is a true/false row mask array, where rows marked as TRUE will be returned.  Row mask array is typically the Data::Table::OK set by match_string/match_pattern/match_pattern_hash methods.
 
 =item table table::clone
 
@@ -2371,7 +2586,7 @@ delete a row at $rowIdx. It will the reference to the deleted row.
 
 =item refto_array table::delRows ( $rowIdcsRef )
 
-delete rows in @$rowIdcsRef. It will return an array of deleted rows
+delete rows in @$rowIdcsRef. It will return an array of deleted rows in the same order of $rowIdcsRef upon success.
 upon success.
 
 =item int table::addCol ($colRef, $colName, $colIdx = numCol)
@@ -2388,7 +2603,7 @@ return the reference to the deleted column.
 =item arrayof_refto_array table::delCols ($colIDsRef)
 
 delete a list of columns, pointed by $colIDsRef. It will
-return an array of deleted columns upon success.
+return an array of deleted columns in the same order of $colIDsRef  upon success.
 
 =item refto_array table::rowRef ($rowIdx)
 
@@ -2446,6 +2661,12 @@ It returns 1 upon success or undef otherwise.
 
 move column referred by $colID to a new location $colIdx.
 It returns 1 upon success or undef otherwise.
+
+=item int table::reorder($colIDRefs, $arg_ref)
+
+Rearrange the columns according to the order specified in $colIDRef.  Columns not specified in the reference array will be appended to the end!
+If one would like to drop columns not specified, set $arg_ref to {keepRest => 0}.
+reorder() changes the table itself, while subTable(undef, $colIDRefs) will return a new table.  reorder() might also runs faster than subTable, as elements may not need to be copied.
 
 =item int table::colMap ($colID, $fun)
 
@@ -2543,7 +2764,13 @@ mask is reference to an array, where elements are evaluated to be true or false.
 E.g., $t1=$tbl->match_string('keyword'); $t2=$tbl->rowMask(\@Data::Table::OK, 1) creates two new tables. $t1 contains all rows match 'keyword', while 
 $t2 contains all other rows.
 
-=item table table::group($colsToGroupBy, $colsToCalculate, $funsToApply, $newColNames)
+=item table table::each_group($colsToGroupBy, $funsToApply)
+
+Primary key columns are specified in $colsToGroupBy. All rows are grouped by primary keys first (keys sorted as string). Then for each group, subroutines $funToAppy is applied to corresponding rows.
+$funToApply are passed with two parameters ($tableRef, $rowIDsRef). All rows sharing the key are passed in as a Data::Table object (with all columns and in the order of ascending row index) in the first parameter.
+The second optional parameter contains an array of row indices of the group members.  Since all rows in the passed-in table contains the same keys, the key value can be obtained from its first table row.
+
+=item table table::group($colsToGroupBy, $colsToCalculate, $funsToApply, $newColNames, $keepRestCols)
 
 Primary key columns are specified in $colsToGroupBy. All rows are grouped by primary keys first. Then for each group, an array of subroutines (in $funsToAppy) are applied to corresponding columns and yield a list of new columns (specified in $newColNames).
 
@@ -2551,15 +2778,24 @@ $colsToGroupBy, $colsToCalculate are references to array of colIDs. $funsToApply
 reference to array of new column name strings. If specified, the size of arrays pointed by $colsToCalculate, $funsToApply and $newColNames should be i
 dentical. A column may be used more than once in $colsToCalculate. 
 
+$keepRestCols is default to 0 (introduced in 1.64), otherwise, the remaining columns are returned with the first encountered value of that group.
+
 E.g., an employee salary table $t contains the following columns: Name, Sex, Department, Salary. (see examples in the SYNOPSIS)
 
 $t2 = $t->group(["Department","Sex"],["Name", "Salary"], [sub {scalar @_}, \&average], ["Nof Employee", "Average Salary"]);
 
 Department, Sex are used together as the primary key columns, a new column "Nof Employee" is created by counting the number of employee names in each group, a new column "Average Salary" is created by averaging the Salary data falled into each group. As the result, we have the head count and average salary information for each (Department, Sex) pair. With your own functions (such as sum, product, average, standard deviation, etc), group method is very handy for accounting purpose.
+If primary key columns are not defined, all records will be treated as one group.
 
-=item table table::pivot($colToSplit, $colToSplitIsNumeric, $colToFill, $colsToGroupBy, $keepRestCols)
+$t2 = $t->group(undef,["Name", "Salary"], [sub {scalar @_}, \&average], ["Nof Employee", "Average Salary"]);
 
-Every unique values in a column (specified by $colToSplit) become a new column. undef value become "NULL".  If the column type is numeric (specified by $colToSplitIsNumeric), the new column names are prefixed by "oldColumnName=". The new cell element is filled by the value specified by $colToFill (was 1/0 before version 1.63).
+The above statement will output the total number of employees and their average salary as one line.
+
+=item table table::pivot($colToSplit, $colToSplitIsStringOrNumeric, $colToFill, $colsToGroupBy, $keepRestCols)
+
+Every unique values in a column (specified by $colToSplit) become a new column. undef value become "NULL".  $colToSplitIsStringOrNumeric is set to numeric (0 or Data::Table:NUMBER), the new column names are prefixed by "oldColumnName=". The new cell element is filled by the value specified by $colToFill (was 1/0 before version 1.63).
+
+Note: yes, it seems I made an incompatible change in version 1.64, where $colToSplitIsStringOrNumber used to be $colToSplitIsNumeric, where 0 meant STRING and 1 meant NUMBER.  Now it is opposite.  However, I also added auto-type detection code, that this parameter essentially is auto-guessed and most old code should behave the same as before.
 
 When primary key columns are specified by $colsToGroupBy, all records sharing the same primary key collapse into one row, with values in $colToFill filling the corresponding new columns. If $colToFill is not specified, a cell is filled with the number of records fall into that cell.
 
@@ -2570,6 +2806,88 @@ E.g., applying pivot method to the resultant table of the example of the group m
 $t2->pivot("Sex", 0, "Average Salary",["Department"]);
 
 This creates a 2x3 table, where Departments are use as row keys, Sex (female and male) become two new columns. "Average Salary" values are used to fill the new table elements. Used together with group method, pivot method is very handy for accounting type of analysis.
+If $colsToGroupBy is left as undef, all rows are treated as one group.  If $colToSplit is left as undef, the method will generate a column named "(all)" that matches all records share the corresponding primary key.
+
+=item table table::melt($keyCols, $variableCols, $arg_ref)
+
+The idea of melt() and cast() are taken from Hadley Wickham's Reshape package in R language.
+A table is first melt() into a tall-skiny format, where measurements are stored in the format of a variable-value pair per row.
+Such a format can then be easily cast() into various contingency tables.
+
+One needs to specify the columns consisting of primary keys, columns that are consider as variable columns.  The output variable column is named 'variable' unless specified by $arg_ref{variableColName}.  The output value column is named 'value', unless specified in $arg_ref{valueColName}.  By default NULL values are not output, unless $arg_ref{skip_NULL} is set to false.
+
+For each object (id), we measure variable x1 and x2 at two time points
+$t = new Data::Table([[1,1,5,6], [1,2,3,5], [2,1,6,1], [2,2,2,4]], ['id','time','x1','x2'], Data::Table::ROW_BASED);
+# id	time	x1	x2
+# 1	1	5	6
+# 1	2	3	5
+# 2	1	6	1
+# 2	2	2	4
+
+# melting a table into a tall-and-skinny table
+$t2 = $t->melt(['id','time']);
+#id      time    variable        value
+# 1       1       x1      5
+# 1       1       x2      6
+# 1       2       x1      3
+# 1       2       x2      5
+# 2       1       x1      6
+# 2       1       x2      1
+# 2       2       x1      2
+# 2       2       x2      4
+
+# casting the table, &average is a method to calculate mean
+# for each object (id), we calculate average value of x1 and x2 over time
+$t3 = $t2->cast(['id'],'variable',Data::Table::STRING,'value', \&average);
+# id      x1      x2
+# 1       4       5.5
+# 2       4       2.5
+
+=item table table::cast($colsToGroupBy, $colToSplit, $colToSplitIsStringOrNumeric, $colToCalculate, $funToApply)
+
+see melt(), as melt() and cast() are meant to use together.
+
+The table has been melten before.  cast() group the table according to primary keys specified in $colsToGroupBy. For each group of objects sharing the same id,
+it further groups values (specified by $colToCalculate) according to unique variable names (specified by $colToSplit).  Then it applies subroutine $funToApply to obtain an aggregate value.
+For the output, each unique primary key will be a row, each unique variable name will become a column, the cells are the calculated aggregated value.
+
+If $colsToGroupBy is undef, all rows are treated as within the same group.  If $colToSplit is undef, a new column "(all)" is used to hold the results.
+
+$t = new Data::Table( # create an employ salary table
+    [
+      ['Tom', 'male', 'IT', 65000],
+      ['John', 'male', 'IT', 75000],
+      ['Tom', 'male', 'IT', 65000],
+      ['John', 'male', 'IT', 75000],
+      ['Peter', 'male', 'HR', 85000],
+      ['Mary', 'female', 'HR', 80000],
+      ['Nancy', 'female', 'IT', 55000],
+      ['Jack', 'male', 'IT', 88000],
+      ['Susan', 'female', 'HR', 92000]
+    ],
+    ['Name', 'Sex', 'Department', 'Salary'], Data::Table::ROW_BASED);
+
+# get a Department x Sex contingency table, get average salary across all four groups
+print $t->cast(['Department'], 'Sex', Data::Table::STRING, 'Salary', \&average)->csv(1);
+Department,female,male
+IT,55000,73600
+HR,86000,85000
+# get average salary for each department
+print $t->cast(['Department'], undef, Data::Table::STRING, 'Salary', \&average)->csv(1);
+Department,(all)
+IT,70500
+HR,85666.6666666667
+
+# get average salary for each gender
+print $t->cast(['Sex'], undef, Data::Table::STRING, 'Salary', \&average)->csv(1);
+Sex,(all)
+male,75500
+female,75666.6666666667
+
+# get average salary for all records
+print $t->cast(undef, undef, Data::Table::STRING, 'Salary', \&average)->csv(1);
+(all)
+75555.5555555556
 
 =back
 
@@ -2699,6 +3017,18 @@ Here is a summary (partially repeat) of some classic usages of Data::Table.
 
   Same for TSV
 
+=head2 Interface to Excel XLS/XLSX
+
+Read in two tables from NorthWind.xls file, writes them out to XLSX format.  See Data::Table::Excel module for details.
+
+  use Data::Table::Excel;
+
+  my ($tableObjects, $tableNames)=xls2tables("NorthWind.xls");
+  $t_category = $tableObjects[0];
+  $t_product = $tableObjects[1];
+
+  tables2xlsx("NorthWind.xlsx", [$t_category, $t_product]);
+
 =head2 Interface to Graphics Package
 
   use GD::Graph::points;
@@ -2726,7 +3056,7 @@ Perl.
 
 =head1 SEE ALSO
 
-  DBI, GD::Graph.
+  DBI, GD::Graph, Data::Table::Excel.
 
 =cut
 

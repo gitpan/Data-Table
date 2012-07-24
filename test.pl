@@ -78,9 +78,9 @@ if ((@rows = $t->delRows([0,2,3])) && $t->nofRow==6) {
 } else {
   print "not ok 12 delRows()\n";
 }
-$t->addRow(shift @rows,1);
-$t->addRow(shift @rows,1);
 $t->addRow(shift @rows,0);
+$t->addRow(shift @rows,2);
+$t->addRow(shift @rows,3);
 if ($t->nofRow==9) {
   print "ok 13 delRows() & addRow()\n";
 } else {
@@ -102,8 +102,8 @@ if ((@cols = $t->delCols(["Temp, C","Amino acid","Entry"])) && $t->nofCol==3) {
   print "not ok 16 delCols()\n";
 }
 $t->addCol(shift @cols,"Temp, C",2);
-$t->addCol(shift @cols,"Entry",0);
 $t->addCol(shift @cols,"Amino acid",0);
+$t->addCol(shift @cols,"Entry",1);
 if ($t->nofCol==6) {
   print "ok 17 delCols() & addCol()\n";
 } else {
@@ -333,21 +333,26 @@ sub average {
   return ($n>0)?$sum/$n:undef;
 }
 
-$t2 = $t->group(["Department","Sex"],["Name", "Salary"], [sub {scalar @_}, \&average], ["Nof Employee", "Average Salary"]);
-if ($t2->nofRow == 4 && $t2->nofCol == 4) {
-  print "ok 50 group\n";
+$t2 = $t->group([],["Name", "Salary"], [sub {scalar @_}, \&average], ["Nof Employee", "Average Salary"]);
+if ($t2->nofRow == 1 && $t2->elm(0,0) == 7) {
+  print "ok 50 group with no key\n";
 } else {
-  print "not ok 50 group\n";
+  print "not ok 50 group with no key\n";
 }
 
-# print $t2->csv;
+$t2 = $t->group(["Department","Sex"],["Name", "Salary"], [sub {scalar @_}, \&average], ["Nof Employee", "Average Salary"]);
+if ($t2->nofRow == 4 && $t2->nofCol == 4) {
+  print "ok 51 group\n";
+} else {
+  print "not ok 51 group\n";
+}
 
-$t2 = $t2->pivot("Sex", 0, "Average Salary", ["Department"]);
+$t2 = $t2->pivot("Sex", Data::Table::STRING, "Average Salary", ["Department"]);
 #print $t2->html;
 if ($t2->nofRow == 2 && $t2->nofCol == 3) {
-  print "ok 51 pivot\n";
+  print "ok 52 pivot\n";
 } else {
-  print "not ok 51 pivot\n";
+  print "not ok 52 pivot\n";
 }
 
 my $s = $t2->csv;
@@ -357,9 +362,9 @@ open($fh, "ccc.csv") or die "Cannot open ccc.csv to read\n";
 my $t_fh=Data::Table::fromCSV($fh);
 close($fh);
 if ($t_fh->csv eq $s) {
-  print "ok 52 fromCSV using file handler\n";
+  print "ok 53 fromCSV using file handler\n";
 } else {
-  print "not ok 52 fromCSV using file handler\n";
+  print "not ok 53 fromCSV using file handler\n";
 }
 #print $t2->csv;
 
@@ -369,9 +374,9 @@ open($fh, "ccc.csv") or die "Cannot open ccc.csv to read\n";
 my $t_fh=Data::Table::fromTSV($fh);
 close($fh);
 if ($t_fh->tsv eq $s) {
-  print "ok 53 fromTSV using file handler\n";
+  print "ok 54 fromTSV using file handler\n";
 } else {
-  print "not ok 53 fromTSV using file handler\n";
+  print "not ok 54 fromTSV using file handler\n";
 }
 #print $t2->csv;
 
@@ -391,9 +396,9 @@ $t->sort("PlateWell", $my_sort_func, 0);
 #print join(" ", $t->col("PlateWell"));
 
 if (join("", $t->col("PlateWell")) eq join("", @$Well)) {
-  print "ok 54 sort using custom operator\n";
+  print "ok 55 sort using custom operator\n";
 } else {
-  print "not ok 54 fromTSV custom operator\n";
+  print "not ok 55 fromTSV custom operator\n";
 }
 
 #open $fh, "<", \$s or die "Cannot open in-memory file\n";
@@ -406,26 +411,26 @@ close($fh);
 if ($t_fh->elm(0, 'col_B') eq "2, 3 or 5"
     && $t_fh->elm(1, 'col_B') eq "one:two"
     && $t_fh->elm(1, 'col_C') eq 'double", single\'') {
-  print "ok 55 using custom delimiter and qualifier for fromCSV\n";
+  print "ok 56 using custom delimiter and qualifier for fromCSV\n";
 } else {
-  print "not ok 55 using custom delimiter and qualifier for fromCSV\n";
+  print "not ok 56 using custom delimiter and qualifier for fromCSV\n";
 } 
 
 $t = Data::Table::fromCSV("bbb.csv", 1, undef, {skip_lines=>1, delimiter=>':', skip_pattern=>'^\s*#'});
 $s = $t->tsv;
 $t2 = Data::Table::fromTSV("aaa.tsv", 1);
 if (equal($t->rowRefs, $t2->rowRefs)) {
-  print "ok 56 using skip_lines and skip_pattern for fromCSV\n";
+  print "ok 57 using skip_lines and skip_pattern for fromCSV\n";
 } else {
-  print "not ok 56 using skip_lines and skip_pattern for fromCSV\n";
+  print "not ok 57 using skip_lines and skip_pattern for fromCSV\n";
 }
 
 if (Data::Table::fromFileGuessOS("t_unix.csv")==0 &&
     Data::Table::fromFileGuessOS("t_dos.csv")==1 && 
     Data::Table::fromFileGuessOS("t_mac.csv")==2){
-  print "ok 57 using fromFileGuessOS\n";
+  print "ok 58 using fromFileGuessOS\n";
 } else {
-  print "not ok 57 using fromFileGuessOS\n";
+  print "not ok 58 using fromFileGuessOS\n";
 }
 
 my $t_unix=Data::Table::fromFile("t_unix.csv");
@@ -435,87 +440,143 @@ my $t_mac=Data::Table::fromFile("t_mac.csv");
 if (equal($t_unix->rowRefs, $t_unix_noheader->rowRefs) &&
     equal($t_unix->rowRefs, $t_dos->rowRefs) &&
     equal($t_unix->rowRefs, $t_mac->rowRefs)) {
-  print "ok 58 using fromFile\n";
+  print "ok 59 using fromFile\n";
 } else {
-  print "not ok 58 using fromFile\n";
+  print "not ok 59 using fromFile\n";
 }
 
 $t=Data::Table::fromFile("ttt.tsv", {transform_element=>0});
 $t2=Data::Table::fromFile("ttt.csv");
 if (equal($t->rowRefs(), $t2->rowRefs())) {
-  print "ok 59 using fromFile, fromTSV, transform_element\n";
+  print "ok 60 using fromFile, fromTSV, transform_element\n";
 } else {
-  print "not ok 59 using fromFile, fromTSV, transform_element\n";
+  print "not ok 60 using fromFile, fromTSV, transform_element\n";
 }
 
 if ($t->html({odd=>'myOdd', even=>'myEven', header=>'myHeader'})) {
-  print "ok 60 using html with CSS class\n";
+  print "ok 61 using html with CSS class\n";
 } else {
-  print "not ok 60 using html with CSS\n";
+  print "not ok 61 using html with CSS\n";
 }
 
 my %myRow=(COL_B=>'xyz');
 if ($t->addRow(\%myRow, 1) && $t->nofRow==3 && equal($t->rowRef(1), [undef, 'xyz'])) {
-  print "ok 61 addRow() with hash_ref\n";
+  print "ok 62 addRow() with hash_ref\n";
 } else {
-  print "not ok 61 addRow() with hash_ref\n";
+  print "not ok 62 addRow() with hash_ref\n";
 }
 
 $t2 = $t->clone();
 map {$t2->rename($_, $_."2")} $t2->header;
 $t->rowMerge($t2, {byName => 1});
 if ($t->nofRow == $t2->nofRow*2 && $t->nofCol == $t2->nofCol) {
-  print "ok 62 rowMerge() with byName=1\n";
+  print "ok 63 rowMerge() with byName=1\n";
 } else {
-  print "not ok 62 rowMerge() with byName=1\n";
+  print "not ok 63 rowMerge() with byName=1\n";
 }
 
 $t->rowMerge($t2, {byName => 1, addNewCol => 1});
 if ($t->nofRow == $t2->nofRow*3 && $t->nofCol == $t2->nofCol*2) {
-  print "ok 63 rowMerge() with byName=1 and addNewCol=1\n";
+  print "ok 64 rowMerge() with byName=1 and addNewCol=1\n";
 } else {
-  print "not ok 63 rowMerge() with byName=1 and addNewCol=1\n";
+  print "not ok 64 rowMerge() with byName=1 and addNewCol=1\n";
 }
 
 $t2->rename(0, 'COL_A');
 $t2->rename(1, 'COL_B');
 $t->rowMerge($t2, {byName => 0, addNewCol => 1});
 if ($t->nofRow == $t2->nofRow*4 && $t->nofCol == $t2->nofCol) {
-  print "ok 64 rowMerge() with byName=0 and addNewCol=1\n";
+  print "ok 65 rowMerge() with byName=0 and addNewCol=1\n";
 } else {
-  print "not ok 64 rowMerge() with byName=0 and addNewCol=1\n";
+  print "not ok 65 rowMerge() with byName=0 and addNewCol=1\n";
 }
 
 $t=Data::Table::fromCSV("aaa.csv", 1);
 $t2=$t->clone();
 $t = $t->join($t2, 0, ['Amino acid'], ['Amino acid'], {renameCol => 1});
 if ($t->nofRow == $t2->nofRow && $t->nofCol == $t2->nofCol*2-1) {
-  print "ok 65 join() with auto renaming duplicate column names\n";
+  print "ok 66 join() with auto renaming duplicate column names\n";
 } else {
-  print "not ok 65 join() with auto renaming duplicate column names\n";
+  print "not ok 66 join() with auto renaming duplicate column names\n";
 }
 
 $t=Data::Table::fromCSV("aaa.csv", 1);
 $t2=$t->clone();
 $t->colMerge($t2, {renameCol => 1});
 if ($t->nofCol == $t2->nofCol*2) {
-  print "ok 66 colMerge() with auto renaming duplicate column names\n";
+  print "ok 67 colMerge() with auto renaming duplicate column names\n";
 } else {
-  print "not ok 66 colMerge() with auto renaming duplicate column names\n";
+  print "not ok 67 colMerge() with auto renaming duplicate column names\n";
 }
 
 $t=Data::Table::fromCSV("aaa.csv", 1);
 if (($t2=$t->match_pattern_hash('$_{"Amino acid"} =~ /^L-a/ && $_{"Grams \"(a.a.)\""}<0.2')) && $t2->nofRow()==2) {
-  print "ok 67 match_pattern_hash()\n";
+  print "ok 68 match_pattern_hash()\n";
 } else {
-  print "not ok 67 match_pattern()\n";
+  print "not ok 68 match_pattern()\n";
+}
+$t2 = $t->subTable($t->{OK}, undef, {useRowMask=>1});
+#print Dumper($t2);
+if ($t2->nofRow()==2) {
+  print "ok 69 subTable() with row mask\n";
+} else {
+  print "not ok 69 subTable() with row mask\n";
 }
 
 $t2->moveCol('Amino acid', 1);
 if (($t2->header)[1] eq 'Amino acid') {
-  print "ok 68 moveCol()\n";
+  print "ok 70 moveCol()\n";
 } else {
-  print "not ok 68 moveCol()\n";
+  print "not ok 70 moveCol()\n";
+}
+#Entry,Amino acid,Solvent,"Grams ""(a.a.)""/100g sol.","Temp, C",Ref No.
+$t2->reorder(["Amino acid","Temp, C","Entry"]);
+if (($t2->header)[1] eq 'Temp, C') {
+  print "ok 71 reorder()\n";
+} else {
+  print "not ok 71 reorder()\n";
+}
+
+$t = new Data::Table([[1,1,5,6], [1,2,3,5], [2,1,6,1], [2,2,2,4]],
+  ['id','time','x1','x2'], Data::Table::ROW_BASED);
+
+$t2=new Data::Table([],['id','count', 'rows']);
+$t->each_group(['id'], sub { my ($t, $rows) = @_; $t2->addRow([$t->elm(0,'id'), $t->nofRow, join(":", @$rows)])});
+my $t3 = new Data::Table([[1,2], [2,2], ['0:1','2:3']], ['id','count','rows'], Data::Table::COLUMN_BASED);
+if (equal($t2->rowRefs, $t3->rowRefs)) {
+  print "ok 72 group_each()\n";
+} else {
+  print "not ok 72 group_each()\n";
+}
+
+$t2 = $t->melt(['id','time']);
+if ($t2->nofRow == 8 && $t2->nofCol == 4) {
+  print "ok 73 melt()\n";
+} else {
+  print "not ok 73 melt()\n";
+}
+$t3 = $t2->cast(['id'],'variable',Data::Table::STRING,'value', \&average);
+my $t=new Data::Table([[1,4,5.5], [2,4,2.5]], ['id','x1','x2'], Data::Table::ROW_BASED);
+if (equal($t3->rowRefs, $t->rowRefs)) {
+  print "ok 74 cast()\n";
+} else {
+  print "not ok 74 cast()\n";
+}
+
+$t3 = $t2->cast(['id'],undef,Data::Table::STRING,'value', \&average);
+my $t=new Data::Table([[1,4.75], [2,3.25]], ['id','(all)'], Data::Table::ROW_BASED);
+if (equal($t3->rowRefs, $t->rowRefs)) {
+  print "ok 75 cast() without column to split\n";
+} else {
+  print "not ok 75 cast() withotu column to split\n";
+}
+
+$t3 = $t2->cast(undef,undef,Data::Table::STRING,'value', \&average);
+my $t=new Data::Table([[4]], ['(all)'], Data::Table::ROW_BASED);
+if (equal($t3->rowRefs, $t->rowRefs)) {
+  print "ok 76 cast() with total aggregate\n";
+} else {
+  print "not ok 76 cast() with total aggregate\n";
 }
 
 # use DBI;
@@ -534,15 +595,15 @@ package main;
 
 $foo=FOO->new([[11,12],[21,22],[31,32]],['header1','header2'],0);
 if ($foo->csv) {
-  print "ok 69 Inheritance\n";
+  print "ok 77 Inheritance\n";
 } else {
-  print "not ok 69 Inheritance\n";
+  print "not ok 77 Inheritance\n";
 }
 $foo = FOO->fromCSVi("aaa.csv");
 if ($foo->csv) {
-  print "ok 70 inheritated instant method fromCSVi\n";
+  print "ok 78 inheritated instant method fromCSVi\n";
 } else {
-  print "not ok 70 inheritated instant method fromCSVi\n";
+  print "not ok 78 inheritated instant method fromCSVi\n";
 }
 
 sub equal {
