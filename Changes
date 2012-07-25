@@ -1,6 +1,10 @@
 Revision history for Perl extension Data::Table.
+1.67 Wed Jul 25 11:47:23 PDT 2012
+  Update Change.txt file to point out $keepRestCol defaults to 1 is only for group()
+  For pivot(), $keepRestCol is still default to 0 as before.
+
 1.66 Wed Jul 25 11:03:29 PDT 2012
-  Change the default value of keepRestCol to 1, instead of 0 to be compatible with older versions
+  Change the default value of keepRestCol in group() to 1, instead of 0 to be compatible with older versions
   Thanks to Kyle Horton
 
 1.65 Mon Jul 23 20:16:08 PDT 2012
