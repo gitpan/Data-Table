@@ -174,7 +174,8 @@ to create a table object from a CSV/TSV file or a database SQL selection in a sn
 record matching via keywords or patterns, table merging, and web publishing.   
 Data::Table class also provides a straightforward interface to other
 popular Perl modules such as DBI and GD::Graph.</p>
-<p>The current version of Table.pm is available at <a href="http://easydatabase.googlepages.com">http://easydatabase.googlepages.com</a></p>
+<p>The most updated version of the Perl Data::Table Cookbook is available at
+ <a href="https://sites.google.com/site/easydatabase/">https://sites.google.com/site/easydatabase/</a></p>
 <p>We use Data::Table instead of Table, because Table.pm has already been used inside PerlQt module in CPAN.</p>
 <p>
 </p>
@@ -770,12 +771,14 @@ The second optional parameter contains an array of row indices of the group memb
 <p>$colsToGroupBy, $colsToCalculate are references to array of colIDs. $funsToApply is a reference to array of subroutine references. $newColNames are a
 reference to array of new column name strings. If specified, the size of arrays pointed by $colsToCalculate, $funsToApply and $newColNames should be i
 dentical. A column may be used more than once in $colsToCalculate.</p>
-<p>$keepRestCols is default to 0 (introduced in 1.64), otherwise, the remaining columns are returned with the first encountered value of that group.</p>
+<p>$keepRestCols is default to 1 (was introduced as 0 in 1.64, changed to 1 in 1.66 for backward compatibility) introduced in 1.64), otherwise, the remaining columns are returned with the first encountered value of that group.</p>
 <p>E.g., an employee salary table $t contains the following columns: Name, Sex, Department, Salary. (see examples in the SYNOPSIS)</p>
-<p>$t2 = $t-&gt;group([&quot;Department&quot;,&quot;Sex&quot;],[&quot;Name&quot;, &quot;Salary&quot;], [sub {scalar @_}, \&amp;average], [&quot;Nof Employee&quot;, &quot;Average Salary&quot;]);</p>
+<pre>
+  $t2 = $t-&gt;group([&quot;Department&quot;,&quot;Sex&quot;],[&quot;Name&quot;, &quot;Salary&quot;], [sub {scalar @_}, \&amp;average], [&quot;Nof Employee&quot;, &quot;Average Salary&quot;]);</pre>
 <p>Department, Sex are used together as the primary key columns, a new column &quot;Nof Employee&quot; is created by counting the number of employee names in each group, a new column &quot;Average Salary&quot; is created by averaging the Salary data falled into each group. As the result, we have the head count and average salary information for each (Department, Sex) pair. With your own functions (such as sum, product, average, standard deviation, etc), group method is very handy for accounting purpose.
 If primary key columns are not defined, all records will be treated as one group.</p>
-<p>$t2 = $t-&gt;group(undef,[&quot;Name&quot;, &quot;Salary&quot;], [sub {scalar @_}, \&amp;average], [&quot;Nof Employee&quot;, &quot;Average Salary&quot;]);</p>
+<pre>
+  $t2 = $t-&gt;group(undef,[&quot;Name&quot;, &quot;Salary&quot;], [sub {scalar @_}, \&amp;average], [&quot;Nof Employee&quot;, &quot;Average Salary&quot;]);</pre>
 <p>The above statement will output the total number of employees and their average salary as one line.</p>
 </dd>
 <dt><strong><a name="pivot" class="item">table table::pivot($colToSplit, $colToSplitIsStringOrNumeric, $colToFill, $colsToGroupBy, $keepRestCols)</a></strong></dt>
@@ -786,7 +789,8 @@ If primary key columns are not defined, all records will be treated as one group
 <p>When primary key columns are specified by $colsToGroupBy, all records sharing the same primary key collapse into one row, with values in $colToFill filling the corresponding new columns. If $colToFill is not specified, a cell is filled with the number of records fall into that cell.</p>
 <p>$colToSplit and $colToFill are colIDs. $colToSplitIsNumeric is 1/0. $colsToGroupBy is a reference to array of colIDs. $keepRestCols is 1/0, by default is 0. If $keepRestCols is off, only primary key columns and new columns are exported, otherwise, all the rest columns are exported as well.</p>
 <p>E.g., applying pivot method to the resultant table of the example of the group method.</p>
-<p>$t2-&gt;pivot(&quot;Sex&quot;, 0, &quot;Average Salary&quot;,[&quot;Department&quot;]);</p>
+<pre>
+  $t2-&gt;pivot(&quot;Sex&quot;, 0, &quot;Average Salary&quot;,[&quot;Department&quot;]);</pre>
 <p>This creates a 2x3 table, where Departments are use as row keys, Sex (female and male) become two new columns. &quot;Average Salary&quot; values are used to fill the new table elements. Used together with group method, pivot method is very handy for accounting type of analysis.
 If $colsToGroupBy is left as undef, all rows are treated as one group.  If $colToSplit is left as undef, the method will generate a column named &quot;(all)&quot; that matches all records share the corresponding primary key.</p>
 </dd>
@@ -797,30 +801,33 @@ If $colsToGroupBy is left as undef, all rows are treated as one group.  If $colT
 A table is first <a href="#melt"><code>melt()</code></a> into a tall-skiny format, where measurements are stored in the format of a variable-value pair per row.
 Such a format can then be easily <a href="#cast"><code>cast()</code></a> into various contingency tables.</p>
 <p>One needs to specify the columns consisting of primary keys, columns that are consider as variable columns.  The output variable column is named 'variable' unless specified by $arg_ref{variableColName}.  The output value column is named 'value', unless specified in $arg_ref{valueColName}.  By default NULL values are not output, unless $arg_ref{skip_NULL} is set to false.</p>
-<p>For each object (id), we measure variable x1 and x2 at two time points
-$t = new Data::Table([[1,1,5,6], [1,2,3,5], [2,1,6,1], [2,2,2,4]], ['id','time','x1','x2'], Data::Table::ROW_BASED);
-# id	time	x1	x2
-# 1	1	5	6
-# 1	2	3	5
-# 2	1	6	1
-# 2	2	2	4</p>
-<p># melting a table into a tall-and-skinny table
-$t2 = $t-&gt;melt(['id','time']);
-#id      time    variable        value
-# 1       1       x1      5
-# 1       1       x2      6
-# 1       2       x1      3
-# 1       2       x2      5
-# 2       1       x1      6
-# 2       1       x2      1
-# 2       2       x1      2
-# 2       2       x2      4</p>
-<p># casting the table, &amp;average is a method to calculate mean
-# for each object (id), we calculate average value of x1 and x2 over time
-$t3 = $t2-&gt;cast(['id'],'variable',Data::Table::STRING,'value', \&amp;average);
-# id      x1      x2
-# 1       4       5.5
-# 2       4       2.5</p>
+<pre>
+  For each object (id), we measure variable x1 and x2 at two time points
+  $t = new Data::Table([[1,1,5,6], [1,2,3,5], [2,1,6,1], [2,2,2,4]], ['id','time','x1','x2'], Data::Table::ROW_BASED);
+  # id  time    x1      x2
+  # 1   1       5       6
+  # 1   2       3       5
+  # 2   1       6       1
+  # 2   2       2       4</pre>
+<pre>
+  # melting a table into a tall-and-skinny table
+  $t2 = $t-&gt;melt(['id','time']);
+  #id      time    variable        value
+  # 1       1       x1      5
+  # 1       1       x2      6
+  # 1       2       x1      3
+  # 1       2       x2      5
+  # 2       1       x1      6
+  # 2       1       x2      1
+  # 2       2       x1      2
+  # 2       2       x2      4
+  
+  # casting the table, &amp;average is a method to calculate mean
+  # for each object (id), we calculate average value of x1 and x2 over time
+  $t3 = $t2-&gt;cast(['id'],'variable',Data::Table::STRING,'value', \&amp;average);
+  # id      x1      x2
+  # 1       4       5.5
+  # 2       4       2.5</pre>
 </dd>
 <dt><strong><a name="cast" class="item">table table::cast($colsToGroupBy, $colToSplit, $colToSplitIsStringOrNumeric, $colToCalculate, $funToApply)</a></strong></dt>
 
@@ -830,7 +837,8 @@ $t3 = $t2-&gt;cast(['id'],'variable',Data::Table::STRING,'value', \&amp;average)
 it further groups values (specified by $colToCalculate) according to unique variable names (specified by $colToSplit).  Then it applies subroutine $funToApply to obtain an aggregate value.
 For the output, each unique primary key will be a row, each unique variable name will become a column, the cells are the calculated aggregated value.</p>
 <p>If $colsToGroupBy is undef, all rows are treated as within the same group.  If $colToSplit is undef, a new column &quot;(all)&quot; is used to hold the results.</p>
-<p>$t = new Data::Table( # create an employ salary table
+<pre>
+  $t = new Data::Table( # create an employ salary table
     [
       ['Tom', 'male', 'IT', 65000],
       ['John', 'male', 'IT', 75000],
@@ -842,26 +850,29 @@ For the output, each unique primary key will be a row, each unique variable name
       ['Jack', 'male', 'IT', 88000],
       ['Susan', 'female', 'HR', 92000]
     ],
-    ['Name', 'Sex', 'Department', 'Salary'], Data::Table::ROW_BASED);</p>
-<p># get a Department x Sex contingency table, get average salary across all four groups
-print $t-&gt;cast(['Department'], 'Sex', Data::Table::STRING, 'Salary', \&amp;average)-&gt;<a href="#csv"><code>csv(1)</code></a>;
-Department,female,male
-IT,55000,73600
-HR,86000,85000
-# get average salary for each department
-print $t-&gt;cast(['Department'], undef, Data::Table::STRING, 'Salary', \&amp;average)-&gt;<a href="#csv"><code>csv(1)</code></a>;
-Department,(all)
-IT,70500
-HR,85666.6666666667</p>
-<p># get average salary for each gender
-print $t-&gt;cast(['Sex'], undef, Data::Table::STRING, 'Salary', \&amp;average)-&gt;<a href="#csv"><code>csv(1)</code></a>;
-Sex,(all)
-male,75500
-female,75666.6666666667</p>
-<p># get average salary for all records
-print $t-&gt;cast(undef, undef, Data::Table::STRING, 'Salary', \&amp;average)-&gt;<a href="#csv"><code>csv(1)</code></a>;
-(all)
-75555.5555555556</p>
+    ['Name', 'Sex', 'Department', 'Salary'], Data::Table::ROW_BASED);</pre>
+<pre>
+  # get a Department x Sex contingency table, get average salary across all four groups
+  print $t-&gt;cast(['Department'], 'Sex', Data::Table::STRING, 'Salary', \&amp;average)-&gt;csv(1);
+  Department,female,male
+  IT,55000,73600
+  HR,86000,85000
+  # get average salary for each department
+  print $t-&gt;cast(['Department'], undef, Data::Table::STRING, 'Salary', \&amp;average)-&gt;csv(1);
+  Department,(all)
+  IT,70500
+  HR,85666.6666666667</pre>
+<pre>
+  # get average salary for each gender
+  print $t-&gt;cast(['Sex'], undef, Data::Table::STRING, 'Salary', \&amp;average)-&gt;csv(1);
+  Sex,(all)
+  male,75500
+  female,75666.6666666667
+  
+  # get average salary for all records
+  print $t-&gt;cast(undef, undef, Data::Table::STRING, 'Salary', \&amp;average)-&gt;csv(1);
+  (all)
+  75555.5555555556</pre>
 </dd>
 </dl>
 <p>

@@ -333,7 +333,7 @@ sub average {
   return ($n>0)?$sum/$n:undef;
 }
 
-$t2 = $t->group([],["Name", "Salary"], [sub {scalar @_}, \&average], ["Nof Employee", "Average Salary"]);
+$t2 = $t->group([],["Name", "Salary"], [sub {scalar @_}, \&average], ["Nof Employee", "Average Salary"], 0);
 if ($t2->nofRow == 1 && $t2->elm(0,0) == 7) {
   print "ok 50 group with no key\n";
 } else {

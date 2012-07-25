@@ -1,4 +1,8 @@
 Revision history for Perl extension Data::Table.
+1.66 Wed Jul 25 11:03:29 PDT 2012
+  Change the default value of keepRestCol to 1, instead of 0 to be compatible with older versions
+  Thanks to Kyle Horton
+
 1.65 Mon Jul 23 20:16:08 PDT 2012
   Finish the "Perl Data::Table Cookbook", should be a good learning material.
   To download, visit https://sites.google.com/site/easydatabase/
