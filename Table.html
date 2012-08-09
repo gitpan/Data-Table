@@ -258,6 +258,16 @@ instead of $t-&gt;rename($t-&gt;colIndex('oldColName'), 'newColIdx').</p>
 <p>see table::match_string, table::match_pattern, and table::match_pattern_hash
 Since 1.62, we recommend you to use $table-&gt;{OK} instead, which is a local array reference.</p>
 </dd>
+<dt><strong><a name="_data__table__match" class="item">@Data::Table::MATCH</a></strong></dt>
+
+<dd>
+<p>see table::match_string, table::match_pattern, and table::match_pattern_hash
+Since 1.67, we return the matched row indices in an array.  Data::Table::MATCH is this array reference.
+Here is an example of setting a max price of 20 to all items with UnitPrice &gt; 20.</p>
+<pre>
+    $t_product-&gt;match_pattern_hash('$_{UnitPrice} &gt; 20');
+    $t_product-&gt;setElm($t_product-&gt;{MATCH}, 'UnitPrice', 20);</pre>
+</dd>
 <dt><strong><a name="_data__table__defaults" class="item">%Data::Table::DEFAULTS</a></strong></dt>
 
 <dd>
@@ -445,6 +455,20 @@ return -1 for invalid column names.</p>
 <dd>
 <p>return number of rows.</p>
 </dd>
+<dt><strong><a name="int_table_lastcol" class="item">int table::lastCol</a></strong></dt>
+
+<dd>
+<p>return the index of the last columns, i.e., nofCol - 1.</p>
+</dd>
+<dt><strong><a name="int_table_lastrow" class="item">int table::lastRow</a></strong></dt>
+
+<dd>
+<p>return the index of the last rows, i.e., nofRow - 1; This is syntax sugar.</p>
+<pre>
+   # these two are equivalent
+   foreach my $i (0 .. $t-&gt;lastRow)
+   foreach my $i (0 .. $t-&gt;nofRow - 1)</pre>
+</dd>
 <dt><strong><a name="bool_table_isempty" class="item">bool table::isEmpty</a></strong></dt>
 
 <dd>
@@ -454,6 +478,11 @@ return -1 for invalid column names.</p>
 
 <dd>
 <p>returns whether the colID is a table column, introduced in 1.63.</p>
+</dd>
+<dt><strong><a name="colname" class="item">bool table::colName($colNumericIndex)</a></strong></dt>
+
+<dd>
+<p>returns the column name for a numeric column index, notice the first column has an index of 0. Introduced in 1.68.</p>
 </dd>
 <dt><strong><a name="elm" class="item">scalar table::elm ($rowIdx, $colID)</a></strong></dt>
 
@@ -550,14 +579,28 @@ Check the above table::html for parameter descriptions.</p>
 
 <dd>
 <p>modify the value of a table element at [$rowIdx, $colID] to a new value $val.
-It returns 1 upon success, undef otherwise.</p>
+It returns 1 upon success, undef otherwise. 
+In 1.68, setElm can manipulate multiple elements, i.e., $rowIdx and $colIdx can be references to an index array, and <a href="#setelm"><code>setElm()</code></a> will modifies all cells defined by the grid.</p>
+<pre>
+    $t-&gt;setElm([0..2], ['ColA', 'ColB'], 'new value');
+    $t-&gt;setElm(0, [1..2], 'new value');</pre>
+<pre>
+    # puts a limit on the price of all expensive items
+    $t_product-&gt;match_pattern_hash('$_{UnitPrice} &gt; 20');
+    $t_product-&gt;setElm($t_product-&gt;{MATCH}, 'UnitPrice', 20);</pre>
 </dd>
-<dt><strong><a name="addrow" class="item">int table::addRow ($rowRef, $rowIdx = table::nofRow)</a></strong></dt>
+<dt><strong><a name="addrow" class="item">int table::addRow ($rowRef, $rowIdx = table::nofRow, $arg_ref = {addNewCol =&gt; 0})</a></strong></dt>
 
 <dd>
 <p>add a new row ($rowRef may point to the actual list of scalars, or it can be a hash_ref (supported since version 1.60)).  If $rowRef points to a hash, the method will lookup the value of a field by ts column name: $rowRef-&gt;{colName}, if not found, undef is used for that field.
 The new row will be referred as $rowIdx as the result. E.g., addRow($aRow, 0) will put the new row as the very first row. By default, it appends a row to the end.
-It returns 1 upon success, undef otherwise.</p>
+In 1.67, we support {addNewCol =&gt; 1}, if specified, a new column will be automatically created for each new element encountered in the $rowRef.</p>
+<pre>
+    # automatically add a new column &quot;aNewColumn&quot; to $t, in order to hold the new value
+    $t-&gt;addRow({anExistingColumn =&gt; 123, aNewColumn =&gt; &quot;XYZ&quot;}, undef, {addNewCol =&gt; 1});
+    # $t only had one column, after this call, it will contain a new column 'col2', in order to hold the new value
+    $t-&gt;addRow([123, &quot;XYZ&quot;], undef, {addNewCol =&gt; 1});</pre>
+<p>It returns 1 upon success, undef otherwise.</p>
 </dd>
 <dt><strong><a name="delrow" class="item">refto_array table::delRow ( $rowIdx )</a></strong></dt>
 
@@ -574,8 +617,13 @@ upon success.</p>
 
 <dd>
 <p>add a new column ($colRef points to the actual data), the new column will be referred as $colName or $colIdx as the result. E.g., addCol($aCol, 'newCol', 0) will put the new column as the very first column.
-By default, append a row to the end.
-It will return 1 upon success or undef otherwise.</p>
+By default, append a column to the end.
+It will return 1 upon success or undef otherwise.
+In 1.68, $colRef can be a scalar, which is the default value that can be used to create the new column.  E.g., to create a new column with default value of undef, 0, 'default', respectively, one can do:</p>
+<pre>
+   $t-&gt;addCol(undef, 'NewCol');
+   $t-&gt;addCol(0, 'NewIntCol');
+   $t-&gt;addCol('default', 'NewStringCol');</pre>
 </dd>
 <dt><strong><a name="delcol" class="item">refto_array table::delCol ($colID)</a></strong></dt>
 
@@ -651,10 +699,11 @@ It returns 1 upon success or undef otherwise.</p>
 <p>swap two columns referred by $colID1 and $colID2.
 It returns 1 upon success or undef otherwise.</p>
 </dd>
-<dt><strong><a name="movecol" class="item">int table::moveCol($colID, $colIdx)</a></strong></dt>
+<dt><strong><a name="movecol" class="item">int table::moveCol($colID, $colIdx, $newColName)</a></strong></dt>
 
 <dd>
 <p>move column referred by $colID to a new location $colIdx.
+If $newColName is specified, the column will be renamed as well.
 It returns 1 upon success or undef otherwise.</p>
 </dd>
 <dt><strong><a name="reorder" class="item">int table::reorder($colIDRefs, $arg_ref)</a></strong></dt>
@@ -719,15 +768,17 @@ the authors feel inplace sorting is more natural.</p>
 <p>return a new table consisting those rows evaluated to be true by $pattern 
 upon success or undef otherwise. If $countOnly is set to 1, it simply returns the number of rows that matches the string without making a new copy of table. $countOnly is 0 by default.</p>
 <p>Side effect: @Data::Table::OK (should use $t-&gt;{OK} after 1.62) stores a true/false array for the original table rows. Using it, users can find out what are the rows being selected/unselected.
-In the $pattern string, a column element should be referred as $_-&gt;[$colIndex]. E.g., match_pattern('$_-&gt;[0]&gt;3 &amp;&amp; $_-&gt;[1]=~/^L') retrieve all the rows where its first column is greater than 3 and second column starts with letter 'L'. Notice it only takes colIndex, column names are not acceptable here!</p>
+Side effect: @Data::Table::MATCH stores a reference to an array containing all row indices for matched rows.</p>
+<p>In the $pattern string, a column element should be referred as $_-&gt;[$colIndex]. E.g., match_pattern('$_-&gt;[0]&gt;3 &amp;&amp; $_-&gt;[1]=~/^L') retrieve all the rows where its first column is greater than 3 and second column starts with letter 'L'. Notice it only takes colIndex, column names are not acceptable here!</p>
 </dd>
 <dt><strong><a name="match_pattern_hash" class="item">table table::match_pattern_hash ($pattern, $countOnly)</a></strong></dt>
 
 <dd>
 <p>return a new table consisting those rows evaluated to be true by $pattern
 upon success or undef otherwise. If $countOnly is set to 1, it simply returns the number of rows that matches the string without making a new copy of table. $countOnly is 0 by default.</p>
-<p>Side effect: @Data::Table::OK stores a true/false array for the original table rows. Using it, users can find out what are the rows being selected/unselected.
-In the $pattern string, a column element should be referred as ${column_name}.
+<p>Side effect: @Data::Table::OK stores a reference to a true/false array for the original table rows. Using it, users can find out what are the rows being selected/unselected.
+Side effect: @Data::Table::MATCH stores a reference to an array containing all row indices for matched rows.</p>
+<p>In the $pattern string, a column element should be referred as ${column_name}.
 <a href="#match_pattern_hash"><code>match_pattern_hash()</code></a> is added in 1.62. The difference between this method and match_pattern is each row is fed to the pattern as a hash %_.
 In the case of match_pattern, each row is fed as an array ref $_.  The pattern for <a href="#match_pattern_hash"><code>match_pattern_hash()</code></a> becomes much cleaner.</p>
 <p>If a table has two columns: Col_A as the 1st column and Col_B as the 2nd column, a filter &quot;Col_A&gt;2 AND Col_<strong>2&quot; is written before as
@@ -741,7 +792,8 @@ This method creates $t-&gt;{OK}, as well as @Data::Table::OK, same as <a href="#
 
 <dd>
 <p>return a new table consisting those rows contains string $s in any of its fields upon success, undef otherwise. if $caseIgnore evaluated to true, case will is be ignored (s/$s/i). If $countOnly is set to 1, it simply returns the number of rows that matches the string without making a new copy of table. $countOnly is 0 by default.</p>
-<p>Side effect: @Data::Table::OK stores a true/false array for the original table rows. 
+<p>Side effect: @Data::Table::OK stores a reference to a true/false array for the original table rows. 
+Side effect: @Data::Table::MATCH stores a reference to an array containing all row indices for matched rows.
 Using it, users can find out what are the rows being selected/unselected.
 The $s string is actually treated as a regular expression and 
 applied to each row element, therefore one can actually specify several keywords 
@@ -756,6 +808,19 @@ by saying, for instance, match_string('One|Other').</p>
  a new table consisting those rows where the corresponding mask element is true (or false, when complement is set to true).</p>
 <p>E.g., $t1=$tbl-&gt;match_string('keyword'); $t2=$tbl-&gt;rowMask(\@Data::Table::OK, 1) creates two new tables. $t1 contains all rows match 'keyword', while 
 $t2 contains all other rows.</p>
+</dd>
+<dt><strong><a name="iterator" class="item">table table::iterator({$reverse =&gt; 0})</a></strong></dt>
+
+<dd>
+<p>Returns a reference to a enumerator routine, which enables one to loop through each table row. If $reverse is set to 1, it will enumerate backward.  The convenience here is each row is fetch as a rowHashRef, so one can easily access row elements by name.</p>
+<pre>
+    my $next = $t_product-&gt;iterator();
+    while (my $row = $next-&gt;()) {
+      # have access to a row as a hash reference, access row number by &amp;$next(1);
+      $t_product-&gt;setElm($next-&gt;(1), 'ProductName', 'New! '.$row-&gt;{ProductName});
+    }</pre>
+<p>In this example, each $row is fetched as a hash reference, so one can access the elements by $row-&gt;{colName}.
+Be aware that the elements in the hash is a copy of the original table elements, so modifying $row-&gt;{colName} does not modify the original table.  If table modification is intended, one needs to obtain the row index of the returned row.  $next-&gt;(1) call with a non-empty argument returns the row index of the record that was previously fetched with $next-&gt;().  In this example, one uses the row index to modify the original table.</p>
 </dd>
 <dt><strong><a name="each_group" class="item">table table::each_group($colsToGroupBy, $funsToApply)</a></strong></dt>
 
@@ -774,11 +839,11 @@ dentical. A column may be used more than once in $colsToCalculate.</p>
 <p>$keepRestCols is default to 1 (was introduced as 0 in 1.64, changed to 1 in 1.66 for backward compatibility) introduced in 1.64), otherwise, the remaining columns are returned with the first encountered value of that group.</p>
 <p>E.g., an employee salary table $t contains the following columns: Name, Sex, Department, Salary. (see examples in the SYNOPSIS)</p>
 <pre>
-  $t2 = $t-&gt;group([&quot;Department&quot;,&quot;Sex&quot;],[&quot;Name&quot;, &quot;Salary&quot;], [sub {scalar @_}, \&amp;average], [&quot;Nof Employee&quot;, &quot;Average Salary&quot;]);</pre>
+  $t2 = $t-&gt;group([&quot;Department&quot;,&quot;Sex&quot;],[&quot;Name&quot;, &quot;Salary&quot;], [sub {scalar @_}, \&amp;average], [&quot;Nof Employee&quot;, &quot;Average Salary&quot;], 0);</pre>
 <p>Department, Sex are used together as the primary key columns, a new column &quot;Nof Employee&quot; is created by counting the number of employee names in each group, a new column &quot;Average Salary&quot; is created by averaging the Salary data falled into each group. As the result, we have the head count and average salary information for each (Department, Sex) pair. With your own functions (such as sum, product, average, standard deviation, etc), group method is very handy for accounting purpose.
 If primary key columns are not defined, all records will be treated as one group.</p>
 <pre>
-  $t2 = $t-&gt;group(undef,[&quot;Name&quot;, &quot;Salary&quot;], [sub {scalar @_}, \&amp;average], [&quot;Nof Employee&quot;, &quot;Average Salary&quot;]);</pre>
+  $t2 = $t-&gt;group(undef,[&quot;Name&quot;, &quot;Salary&quot;], [sub {scalar @_}, \&amp;average], [&quot;Nof Employee&quot;, &quot;Average Salary&quot;], 0);</pre>
 <p>The above statement will output the total number of employees and their average salary as one line.</p>
 </dd>
 <dt><strong><a name="pivot" class="item">table table::pivot($colToSplit, $colToSplitIsStringOrNumeric, $colToFill, $colsToGroupBy, $keepRestCols)</a></strong></dt>
@@ -915,6 +980,7 @@ the new table.</p>
 <p>$cols1 and $cols2 are references to array of colIDs, where rows with the same elements in all listed columns are merged. As the result table, columns listed in $cols2 are deleted, before a new table is returned.</p>
 <p>The implementation is hash-join, the running time should be linear with respect to the sum of number of rows in the two tables (assume both tables fit in memory).</p>
 <p>If the non-key columns of the two tables share the same name, the routine will fail, as the result table cannot contain two columns of the same name.  In 1.62, one can specify {renameCol=&gt;1} as $argRef, so that the second column will be automatically renamed (with suffix _2) to avoid collision.</p>
+<p>If you would like to treat the NULLs in the key columns as empty string, set {NULLasEmpty =&gt; 1}.  If you do not want to treat NULLs as empty strings, but you still like the NULLs in two tables to be considered as equal (but not equal to ''), set {matchNULL =&gt; 1}.  Obviously if NULLasEmpty is set to 1, matchNULL will have no effect.</p>
 </dd>
 </dl>
 <p>

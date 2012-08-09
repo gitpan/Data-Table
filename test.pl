@@ -6,7 +6,7 @@
 # Change 1..1 below to 1..last_test_to_print .
 # (It may become useful if the test is moved to ./t subdirectory.)
 
-BEGIN { $| = 1; print "1..62\n"; }
+BEGIN { $| = 1; print "1..83\n"; }
 END {print "not ok 1\n" unless $loaded;}
 use Data::Table;
 use Data::Dumper;
@@ -579,6 +579,48 @@ if (equal($t3->rowRefs, $t->rowRefs)) {
   print "not ok 76 cast() with total aggregate\n";
 }
 
+$t_product=Data::Table::fromFile("Product.csv");
+$t_product->match_pattern_hash('$_{UnitPrice} > 20');
+$t_product->addCol('No', 'IsExpensive');
+if ($t_product->lastCol == 6 && $t_product->elm(0, 'IsExpensive') eq 'No') {
+  print "ok 77 addCol() with default value\n";
+} else {
+  print "not ok 77 addCol() with default value\n";
+}
+
+if (@{$t_product->{MATCH}} == 37) {
+  print "ok 78 {MATCH} after match_pattern_hash\n";
+} else {
+  print "not ok 78 {MATCH} after match_pattern_hash\n";
+}
+
+$t_product->setElm($t_product->{MATCH}, 'IsExpensive', 'Yes');
+if ($t_product->elm($t_product->{MATCH}->[0], 'IsExpensive') eq 'Yes') {
+  print "ok 79 setElm() for multiple cells\n";
+} else {
+  print "not ok 79 setElm() for multiple cells\n";
+}
+
+my $cnt = 0;
+my $next = $t_product->iterator();
+while (my $row = &$next) {
+  $cnt ++;
+  $t_product->setElm(&$next(1), 'ProductName', 'New! '.$row->{ProductName});
+}
+
+if ($cnt == 77 && $t_product->elm(0, 'ProductName') =~ /^New!/) {
+  print "ok 80 iterator()\n";
+} else {
+  print "not ok 80 iterator()\n";
+}
+
+$t_product->addRow({NewColumn=>'xyz',CategoryName=>'myname'}, undef, {addNewCol=>1});
+if ($t_product->hasCol('NewColumn') && $t_product->elm($t_product->lastRow, 'NewColumn') eq 'xyz') {
+  print "ok 81 addRow() that adds a column\n";
+} else {
+  print "not ok 81 addRow() that adds a column\n";
+}
+
 # use DBI;
 # $dbh= DBI->connect("DBI:mysql:test", "test", "") or die $dbh->errstr;
 # $t = Data::Table::fromSQL($dbh, "show tables");
@@ -595,15 +637,15 @@ package main;
 
 $foo=FOO->new([[11,12],[21,22],[31,32]],['header1','header2'],0);
 if ($foo->csv) {
-  print "ok 77 Inheritance\n";
+  print "ok 82 Inheritance\n";
 } else {
-  print "not ok 77 Inheritance\n";
+  print "not ok 82 Inheritance\n";
 }
 $foo = FOO->fromCSVi("aaa.csv");
 if ($foo->csv) {
-  print "ok 78 inheritated instant method fromCSVi\n";
+  print "ok 83 inheritated instant method fromCSVi\n";
 } else {
-  print "not ok 78 inheritated instant method fromCSVi\n";
+  print "not ok 83 inheritated instant method fromCSVi\n";
 }
 
 sub equal {

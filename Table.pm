@@ -2,20 +2,11 @@ package Data::Table;
 BEGIN { die "Your perl version is old, see README for instructions" if $] < 5.005; }
 
 use strict;
-use vars qw($VERSION %DEFAULTS @ISA @EXPORT @EXPORT_OK);
+use vars qw($VERSION %DEFAULTS);
 use Carp;
 use Data::Dumper;
 
-require Exporter;
-require AutoLoader;
-
-@ISA = qw(Exporter AutoLoader);
-# Items to export into callers namespace by default. Note: do not export
-# names by default without a very good reason. Use EXPORT_OK instead.
-# Do not simply export all your public functions/methods/constants.
-@EXPORT = qw(
-);
-$VERSION = '1.67';
+$VERSION = '1.68';
 %DEFAULTS = (
   "CSV_DELIMITER"=>',', # controls how to read/write CSV file
   "CSV_QUALIFIER"=>'"',
@@ -61,7 +52,7 @@ sub new {
   } elsif (scalar @$data == 0) {
     $type = 0;
   }
-  my $self={ data=>$data, header=>$header, type=>$type, colHash=>$colHash, OK=>[]};
+  my $self={ data=>$data, header=>$header, type=>$type, colHash=>$colHash, OK=>[], MATCH=>[]};
   return bless $self, $class;
 }
 
@@ -115,6 +106,40 @@ sub nofRow {
     scalar @{$self->{data}->[0]} : scalar @{$self->{data}};
 }
 
+sub lastRow {
+  my $self = shift;
+  return $self->nofRow - 1;
+}
+
+sub lastCol {
+  my $self = shift;
+  return $self->nofCol - 1;
+}
+
+sub colName {
+  my ($self, $colNumericIndex) = @_;
+  return ($self->header())[$colNumericIndex];
+}
+
+sub iterator {
+  my ($self, $arg_ref) = @_;
+  my %arg = defined $arg_ref ? %$arg_ref : ();
+  $arg{reverse} = 0 unless exists $arg{reverse};
+  my $current_row = $arg{reverse} ? $self->lastRow : 0;
+
+  return sub {
+    my $rowIdx = shift;
+    if (defined $rowIdx) { # return row index for previously returned record
+      my $prevRow = $arg{reverse} ? $current_row+1 : $current_row-1;
+      return ($prevRow<0 or $prevRow > $self->nofRow-1)? undef: $prevRow;
+    }
+    return undef if $current_row < 0 or $current_row > $self->nofRow - 1;
+    my $oldRow = $current_row;
+    $arg{reverse} ? $current_row-- : $current_row++;
+    return $self->rowHashRef($oldRow);
+  }
+}
+
 # still need to consider quotes and comma in string
 # need to get csv specification
 sub csvEscape {
@@ -126,7 +151,7 @@ sub csvEscape {
   my $qualifier2 = $qualifier;
   $qualifier2 = substr($qualifier, 1, 1) if length($qualifier)>1; # in case qualifier is a special symbol for regular expression
   $s =~ s/$qualifier/$qualifier2$qualifier2/g;
-  if ($s =~ /[$qualifier$delimiter]/) { return "$qualifier2$s$qualifier2"; }
+  if ($s =~ /[$qualifier$delimiter\r\n]/) { return "$qualifier2$s$qualifier2"; }
   return $s;
 }
 
@@ -331,10 +356,29 @@ sub colsMap {
 }
 
 sub addRow {
-  my ($self, $rowRef, $rowIdx) = @_;
+  my ($self, $rowRef, $rowIdx, $arg_ref) = @_;
+  my %arg = defined $arg_ref ? %$arg_ref : ();
+  $arg{addNewCol} = 0 unless exists $arg{addNewCol};
+
   my $numRow=$self->nofRow();
   my @t;
   my $myRowRef = $rowRef;
+
+  if ($arg{addNewCol}) {
+    if (ref $myRowRef eq 'HASH') {
+      foreach my $key (keys %$myRowRef) {
+        next if $self->colIndex($key) >= 0;
+        my @col = (undef) x $self->nofRow;
+        $self->addCol(\@col, $key);
+      }
+    } elsif (ref $myRowRef eq 'ARRAY') {
+      for (my $i=$self->nofCol; $i< scalar @$myRowRef; $i++) {
+        my @col = (undef) x $self->nofRow;
+        $self->addCol(\@col, "col".($i+1));
+      }
+    }
+  }
+
   if (ref $myRowRef eq 'HASH') {
     if ($self->isEmpty) {
       my $i = 0;
@@ -399,8 +443,14 @@ sub addCol {
   my ($self, $colRef, $colName, $colIdx) = @_;
   my $numCol=$self->nofCol();
   my @t;
-  confess "addCol: size of added col does not match rows in the table\n" 
-	if scalar @$colRef != $self->nofRow() and $numCol > 0; 
+  if (!defined($colRef) || ref($colRef) eq '') {
+    # fill the new column with $colRef as the default value
+    my @col = ($colRef) x $self->nofRow;
+    $colRef = \@col;
+  } else {
+    confess "addCol: size of added col does not match rows in the table\n" 
+    if @$colRef != $self->nofRow() and $numCol > 0; 
+  }
   $colIdx=$numCol unless defined($colIdx);
   return undef unless defined $self->checkNewCol($colIdx, $colName);
   $self->rotate() unless $self->{type};
@@ -602,7 +652,7 @@ sub swap{
 }
 
 sub moveCol {
-  my ($self, $colID, $colIdx) = @_;
+  my ($self, $colID, $colIdx, $newColName) = @_;
   my $c=$self->checkOldCol($colID);
   return undef unless defined $c;
   confess "New column location out of bound!" unless ($colIdx >= 0 && $colIdx < $self->nofCol);
@@ -610,6 +660,7 @@ sub moveCol {
   my $colName = $self->{header}->[$c];
   my $col = $self->delCol($colID);
   $self->addCol($col, $colName, $colIdx);
+  $self->rename($colIdx, $newColName) if defined $newColName;
   return 1;
 }
 
@@ -696,13 +747,19 @@ sub elmRef {
 
 sub setElm {
   my ($self, $rowIdx, $colID, $val) = @_;
-  my $c=$self->checkOldCol($colID);
-  return undef unless defined $c;
-  return undef unless defined $self->checkOldRow($rowIdx);
-  if ($self->{type}) {
-    $self->{data}->[$c]->[$rowIdx]=$val;
-  } else {
-    $self->{data}->[$rowIdx]->[$c]=$val;
+  $rowIdx = [$rowIdx] if ref($rowIdx) eq '';
+  $colID = [$colID] if ref($colID) eq '';
+  foreach my $col (@$colID) {
+    my $c=$self->checkOldCol($col);
+    return undef unless defined $c;
+    foreach my $row (@$rowIdx) {
+      return undef unless defined $self->checkOldRow($row);
+      if ($self->{type}) {
+        $self->{data}->[$c]->[$row]=$val;
+      } else {
+        $self->{data}->[$row]->[$c]=$val;
+      }
+    }
   }
   return 1;
 }
@@ -850,6 +907,8 @@ sub match_pattern {
       $Data::Table::OK[$i] = 0;
     }
   }
+  $self->{MATCH} = [];
+  map { push @{$self->{MATCH}}, $_ if $self->{OK}->[$_] } 0 .. $#ok;
   return $cnt if $countOnly;
   my @header=@{$self->{header}};
   return new Data::Table(\@data, \@header, 0);
@@ -884,6 +943,8 @@ sub match_pattern_hash {
       $Data::Table::OK[$i] = 0;
     }
   }
+  $self->{MATCH} = [];
+  map { push @{$self->{MATCH}}, $_ if $self->{OK}->[$_] } 0 .. $#ok;
   return $cnt if $countOnly;
   my @header=@{$self->{header}};
   return new Data::Table(\@data, \@header, 0);
@@ -925,6 +986,8 @@ sub match_string {
       }
     }
   }
+  $self->{MATCH} = [];
+  map { push @{$self->{MATCH}}, $_ if $self->{OK}->[$_] } 0 .. $#{$self->{OK}};
   return $cnt if $countOnly;
   my @header=@{$self->{header}};
   return new Data::Table(\@data, \@header, 0);
@@ -1173,6 +1236,20 @@ sub fromCSVi {
   return fromCSV(@_);
 }
 
+sub getOneLine {
+  my ($fh, $linebreak, $qualifier) = @_;
+  my $s = '';
+  $qualifier = '' unless defined $qualifier;
+  local($/) = $linebreak;
+  return <$fh> unless $qualifier;
+  while (my $s2 = <$fh>) {
+    $s .= $s2;
+    my @S = ($s =~ /$qualifier/g);
+    return $s if (scalar @S % 2 == 0);
+  }
+  return $s;
+}
+
 sub fromCSV {
   my ($name_or_handler, $includeHeader, $header, $arg_ref) = @_;
   $includeHeader = 1 unless defined($includeHeader);
@@ -1198,8 +1275,9 @@ sub fromCSV {
     $SRC = $name_or_handler; # a file handler
   } else {
     open($SRC, $name_or_handler) or confess "Cannot open $name_or_handler to read";
-    binmode $SRC;
+    #binmode $SRC;
   }
+  binmode $SRC;
   my @data = ();
   my $oldRowDelimiter=$/;
   my $newRowDelimiter=($OS==2)?"\r":(($OS==1)?"\r\n":"\n");
@@ -1207,10 +1285,13 @@ sub fromCSV {
   $/=$newRowDelimiter;
   my $s;
   for (my $i=0; $i<$skip_lines; $i++) {
-    $s=<$SRC>;
+    #$s=<$SRC>;
+    $s = getOneLine($SRC, $newRowDelimiter, $qualifier);
   }
-  $s=<$SRC>;
-  if (defined($skip_pattern)) { while (defined($s) && $s =~ /$skip_pattern/) { $s = <$SRC> }; }
+  #$s=<$SRC>;
+  $s = getOneLine($SRC, $newRowDelimiter, $qualifier);
+  if (defined($skip_pattern)) { while (defined($s) && $s =~ /$skip_pattern/) { $s = getOneLine($SRC, $newRowDelimiter, $qualifier); }}
+  #{ $s = <$SRC> }; }
   if (substr($s, -$n_endl, $n_endl) eq $newRowDelimiter) { for (1..$n_endl) { chop $s }}
   # $_=~ s/$newRowDelimiter$//;
   unless ($s) {
@@ -1239,7 +1320,8 @@ sub fromCSV {
   }
   push @data, $one unless ($includeHeader);
 
-  while($s = <$SRC>) {
+  #while($s = <$SRC>) {
+  while($s = getOneLine($SRC, $newRowDelimiter, $qualifier)) {
     next if (defined($skip_pattern) && $s =~ /$skip_pattern/);
     if (substr($s, -$n_endl, $n_endl) eq $newRowDelimiter) { for (1..$n_endl) { chop $s }}
     # $_=~ s/$newDelimiter$//;
@@ -1457,8 +1539,11 @@ sub fromSQL {
 sub join {
   my ($self, $tbl, $type, $cols1, $cols2, $arg_ref) = @_;
   my $n1 = scalar @$cols1;
-  my %arg= ( renameCol => 0);
-  %arg = %$arg_ref if defined $arg_ref;
+  my %arg= ( renameCol => 0, matchNULL => 0, NULLasEmpty => 0);
+  $arg{renameCol} = $arg_ref->{renameCol} if exists $arg_ref->{renameCol};
+  $arg{matchNULL} = $arg_ref->{matchNULL} if exists $arg_ref->{matchNULL};
+  $arg{NULLasEmpty} = $arg_ref->{NULLasEmpty} if exists $arg_ref->{NULLasEmpty};
+  #%arg = %$arg_ref if defined $arg_ref;
   # default cols2 to cols1 if not specified
   if (!defined($cols2) && $n1>0) {
     $cols2 = [];
@@ -1496,16 +1581,9 @@ sub join {
   my @subRow;
   for ($i = 0; $i < $self->nofRow; $i++) {
     @subRow = @{$data1->[$i]}[@$cols1];
-    # set $key to '\\N' as long as one of the key fields is undef
     my @S = map {tsvEscape($_)} @subRow;
-    for ($j=0; $j<@S; $j++) {
-      last if ($S[$j] eq '\\N');
-    }
-    if ($j>= @S) {
-      $key = join("\t", @S);
-    } else {
-      $key = '\\N';
-    }
+    map { $_ = '' if $_ eq '\\N' } @S if $arg{NULLasEmpty};
+    $key = join("\t", @S);
     unless (defined($H{$key})) {
       $H{$key} = [[$i], []];
     } else {
@@ -1514,20 +1592,16 @@ sub join {
   }
   for ($i = 0; $i < $tbl->nofRow; $i++) {
     @subRow = @{$data2->[$i]}[@$cols2];
-    # set $key to '\\N\\N' as long as one of the key fields is undef
     # we intentionally make the second table undef keys to be '\\N\\N',
     # so that they are different from the first table undef keys
     # avoid NULL == NULL in the join
     my @S = map {tsvEscape($_)} @subRow;
-
-    for ($j=0; $j<@S; $j++) {
-      last if ($S[$j] eq '\\N');
-    }
-    if ($j>= @S) {
-      $key = join("\t", @S);
-    } else {
-      $key = '\\N\\N';
-    }
+    map { $_ = ($arg{NULLasEmpty})? '':($arg{matchNULL} ? $_ : '\\N\\N') if $_ eq '\\N' } @S;
+    #if ($j>= @S) {
+    $key = join("\t", @S);
+    #} else {
+    #  $key = $arg{matchNULL} ? '\\N' : '\\N\\N';
+    #}
     unless (defined($H{$key})) {
       $H{$key} = [[], [$i]];
     } else {
@@ -1932,27 +2006,52 @@ sub pivot {
 }
 
 sub fromFileGuessOS {
-  my ($name) = @_;
+  my ($name, $arg_ref) = @_;
   my $SRC;
   my @OS=("\n", "\r\n", "\r");
   # operatoring system: 0 for UNIX (\n as linebreak), 1 for Windows
   # (\r\n as linebreak), 2 for MAC  (\r as linebreak)
+  my $qualifier = '';
+  $qualifier = $arg_ref->{qualifier} if (defined($arg_ref) && exists $arg_ref->{qualifier});
   my ($len, $os)=(-1, -1);
-  for (my $i=0; $i<@OS; $i++) {
-    open($SRC, $name) or confess "Cannot open $name to read";
-    binmode $SRC;
-    local($/)=$OS[$i];
-    my $s = <$SRC>;
-    #print ">> $i => ". (length($s)-length($OS[$i]))."\n";
-    my $myLen=length($s)-length($OS[$i]);
-    if ($len<0 || ($myLen>0 && $myLen<$len)) {
-      $len=length($s)-length($OS[$i]);
-      $os=$i;
-    }
-    close($SRC);
+  open($SRC, $name) or confess "Cannot open $name to read";
+  binmode $SRC;
+  #local($/)="\n";
+  my $s = getOneLine($SRC, "\n", $qualifier); #<$SRC>;
+  close($SRC);
+  #$s =~ s/\n$//;
+  #my $myLen=length($s);
+  #$s =~ s/\r$//;
+  if ($s =~ /\r\n$/) {
+    return 1;
+  } elsif ($s =~ /\n$/) {
+    return 0;
+  } elsif ($s =~ /\r/) {
+    return 2;
   }
-  # find the OS linebreak that gives the shortest first line
-  return $os;
+  return 0;
+  #if (length($s) == $myLen) {
+  #  return 0;
+  #} elsif (length($s) == $myLen - 1) {
+  #  return 1;
+  #} else {
+  #  return 2;
+  #}
+#  for (my $i=0; $i<@OS; $i++) {
+#    open($SRC, $name) or confess "Cannot open $name to read";
+#    binmode $SRC;
+#    local($/)=$OS[$i];
+#    my $s = <$SRC>;
+#    #print ">> $i => ". (length($s)-length($OS[$i]))."\n";
+#    my $myLen=length($s)-length($OS[$i]);
+#    if ($len<0 || ($myLen>0 && $myLen<$len)) {
+#      $len=length($s)-length($OS[$i]);
+#      $os=$i;
+#    }
+#    close($SRC);
+#  }
+#  # find the OS linebreak that gives the shortest first line
+#  return $os;
 }
 
 sub fromFileGetTopLines {
@@ -1969,10 +2068,10 @@ sub fromFileGetTopLines {
   local($/)=$OS[$os];
   my $n_endl = length($OS[$os]);
   my $cnt=0;
-  while(<$SRC>) {
+  while(my $line = <$SRC>) {
     $cnt++;
-    for (1..$n_endl) { chop; }
-    push @lines, $_;
+    for (1..$n_endl) { chop($line); }
+    push @lines, $line;
     last if ($numLines>0 && $cnt>=$numLines);
   }
   close($SRC);
@@ -1986,7 +2085,7 @@ sub fromFileIsHeader {
   my $fields=parseCSV($s, 0, {delimiter=>$delimiter});
   foreach my $name (@$fields) {
     return 0 unless $name;
-    next if $name=~/[^0-9.eE\-+]/;
+    #next if $name=~/[^0-9.eE\-+]/;
     return 0 if $name=~/^[-+]?[0-9]*\.?[0-9]+([eE][-+]?[0-9]+)?/;
   }
   return 1;
@@ -2026,14 +2125,20 @@ sub fromFile {
   my $os = undef;
   my $hasHeader = undef;
   my $delimiter = undef;
+  my $format = undef;
+  my $qualifier = $Data::Table::DEFAULTS{CSV_QUALIFIER};
+
   if (defined($arg_ref)) {
     $linesChecked = $arg_ref->{'linesChecked'} if defined($arg_ref->{'linesChecked'});
     $os = $arg_ref->{'OS'};
     $hasHeader = $arg_ref->{'has_header'};
     $delimiter = $arg_ref->{'delimiter'};
+    $format = $arg_ref->{'format'};
+    $qualifier = $arg_ref->{'qualifier'} if defined($arg_ref->{'qualifier'});
   }
+  $qualifier = '' if ($format and uc($format) eq 'TSV');
   unless (defined($os)) {
-    $os = fromFileGuessOS($name);
+    $os = fromFileGuessOS($name, {qualifier=>$qualifier});
     $arg_ref->{'OS'}=$os;
   }
   my @S = fromFileGetTopLines($name, $os, $linesChecked);
@@ -2273,6 +2378,15 @@ contains all column names.
 see table::match_string, table::match_pattern, and table::match_pattern_hash
 Since 1.62, we recommend you to use $table->{OK} instead, which is a local array reference.
 
+=item @Data::Table::MATCH
+
+see table::match_string, table::match_pattern, and table::match_pattern_hash
+Since 1.67, we return the matched row indices in an array.  Data::Table::MATCH is this array reference.
+Here is an example of setting a max price of 20 to all items with UnitPrice > 20.
+
+    $t_product->match_pattern_hash('$_{UnitPrice} > 20');
+    $t_product->setElm($t_product->{MATCH}, 'UnitPrice', 20);
+
 =item %Data::Table::DEFAULTS
 
 Store default settings, currently it contains CSV_DELIMITER (set to ','), CSV_QUALIFER (set to '"'), and OS (set to 0).
@@ -2466,6 +2580,18 @@ return number of columns.
 
 return number of rows.
 
+=item int table::lastCol
+
+return the index of the last columns, i.e., nofCol - 1.
+
+=item int table::lastRow
+
+return the index of the last rows, i.e., nofRow - 1; This is syntax sugar.
+
+   # these two are equivalent
+   foreach my $i (0 .. $t->lastRow)
+   foreach my $i (0 .. $t->nofRow - 1)
+
 =item bool table::isEmpty
 
 return whether the table has any column, introduced in 1.63.
@@ -2473,6 +2599,10 @@ return whether the table has any column, introduced in 1.63.
 =item bool table::hasCol($colID)
 
 returns whether the colID is a table column, introduced in 1.63.
+
+=item bool table::colName($colNumericIndex)
+
+returns the column name for a numeric column index, notice the first column has an index of 0. Introduced in 1.68.
 
 =item scalar table::elm ($rowIdx, $colID)
 
@@ -2573,12 +2703,26 @@ Check the above table::html for parameter descriptions.
 
 modify the value of a table element at [$rowIdx, $colID] to a new value $val.
 It returns 1 upon success, undef otherwise. 
+In 1.68, setElm can manipulate multiple elements, i.e., $rowIdx and $colIdx can be references to an index array, and setElm() will modifies all cells defined by the grid.
 
+    $t->setElm([0..2], ['ColA', 'ColB'], 'new value');
+    $t->setElm(0, [1..2], 'new value');
 
-=item int table::addRow ($rowRef, $rowIdx = table::nofRow)
+    # puts a limit on the price of all expensive items
+    $t_product->match_pattern_hash('$_{UnitPrice} > 20');
+    $t_product->setElm($t_product->{MATCH}, 'UnitPrice', 20);
+
+=item int table::addRow ($rowRef, $rowIdx = table::nofRow, $arg_ref = {addNewCol => 0})
 
 add a new row ($rowRef may point to the actual list of scalars, or it can be a hash_ref (supported since version 1.60)).  If $rowRef points to a hash, the method will lookup the value of a field by ts column name: $rowRef->{colName}, if not found, undef is used for that field.
 The new row will be referred as $rowIdx as the result. E.g., addRow($aRow, 0) will put the new row as the very first row. By default, it appends a row to the end.
+In 1.67, we support {addNewCol => 1}, if specified, a new column will be automatically created for each new element encountered in the $rowRef.
+
+    # automatically add a new column "aNewColumn" to $t, in order to hold the new value
+    $t->addRow({anExistingColumn => 123, aNewColumn => "XYZ"}, undef, {addNewCol => 1});
+    # $t only had one column, after this call, it will contain a new column 'col2', in order to hold the new value
+    $t->addRow([123, "XYZ"], undef, {addNewCol => 1});
+
 It returns 1 upon success, undef otherwise.
 
 =item refto_array table::delRow ( $rowIdx )
@@ -2593,8 +2737,14 @@ upon success.
 =item int table::addCol ($colRef, $colName, $colIdx = numCol)
 
 add a new column ($colRef points to the actual data), the new column will be referred as $colName or $colIdx as the result. E.g., addCol($aCol, 'newCol', 0) will put the new column as the very first column.
-By default, append a row to the end.
+By default, append a column to the end.
 It will return 1 upon success or undef otherwise.
+In 1.68, $colRef can be a scalar, which is the default value that can be used to create the new column.  E.g., to create a new column with default value of undef, 0, 'default', respectively, one can do:
+
+   $t->addCol(undef, 'NewCol');
+   $t->addCol(0, 'NewIntCol');
+   $t->addCol('default', 'NewStringCol');
+
 
 =item refto_array table::delCol ($colID)
 
@@ -2658,9 +2808,10 @@ It returns 1 upon success or undef otherwise.
 swap two columns referred by $colID1 and $colID2.
 It returns 1 upon success or undef otherwise.
 
-=item int table::moveCol($colID, $colIdx)
+=item int table::moveCol($colID, $colIdx, $newColName)
 
 move column referred by $colID to a new location $colIdx.
+If $newColName is specified, the column will be renamed as well.
 It returns 1 upon success or undef otherwise.
 
 =item int table::reorder($colIDRefs, $arg_ref)
@@ -2724,6 +2875,8 @@ return a new table consisting those rows evaluated to be true by $pattern
 upon success or undef otherwise. If $countOnly is set to 1, it simply returns the number of rows that matches the string without making a new copy of table. $countOnly is 0 by default.
 
 Side effect: @Data::Table::OK (should use $t->{OK} after 1.62) stores a true/false array for the original table rows. Using it, users can find out what are the rows being selected/unselected.
+Side effect: @Data::Table::MATCH stores a reference to an array containing all row indices for matched rows.
+
 In the $pattern string, a column element should be referred as $_->[$colIndex]. E.g., match_pattern('$_->[0]>3 && $_->[1]=~/^L') retrieve all the rows where its first column is greater than 3 and second column starts with letter 'L'. Notice it only takes colIndex, column names are not acceptable here!
 
 =item table table::match_pattern_hash ($pattern, $countOnly)
@@ -2731,7 +2884,9 @@ In the $pattern string, a column element should be referred as $_->[$colIndex]. 
 return a new table consisting those rows evaluated to be true by $pattern
 upon success or undef otherwise. If $countOnly is set to 1, it simply returns the number of rows that matches the string without making a new copy of table. $countOnly is 0 by default.
 
-Side effect: @Data::Table::OK stores a true/false array for the original table rows. Using it, users can find out what are the rows being selected/unselected.
+Side effect: @Data::Table::OK stores a reference to a true/false array for the original table rows. Using it, users can find out what are the rows being selected/unselected.
+Side effect: @Data::Table::MATCH stores a reference to an array containing all row indices for matched rows.
+
 In the $pattern string, a column element should be referred as ${column_name}.
 match_pattern_hash() is added in 1.62. The difference between this method and match_pattern is each row is fed to the pattern as a hash %_.
 In the case of match_pattern, each row is fed as an array ref $_.  The pattern for match_pattern_hash() becomes much cleaner.
@@ -2747,7 +2902,8 @@ This method creates $t->{OK}, as well as @Data::Table::OK, same as match_pattern
 
 return a new table consisting those rows contains string $s in any of its fields upon success, undef otherwise. if $caseIgnore evaluated to true, case will is be ignored (s/$s/i). If $countOnly is set to 1, it simply returns the number of rows that matches the string without making a new copy of table. $countOnly is 0 by default.
 
-Side effect: @Data::Table::OK stores a true/false array for the original table rows. 
+Side effect: @Data::Table::OK stores a reference to a true/false array for the original table rows. 
+Side effect: @Data::Table::MATCH stores a reference to an array containing all row indices for matched rows.
 Using it, users can find out what are the rows being selected/unselected.
 The $s string is actually treated as a regular expression and 
 applied to each row element, therefore one can actually specify several keywords 
@@ -2764,6 +2920,19 @@ mask is reference to an array, where elements are evaluated to be true or false.
 
 E.g., $t1=$tbl->match_string('keyword'); $t2=$tbl->rowMask(\@Data::Table::OK, 1) creates two new tables. $t1 contains all rows match 'keyword', while 
 $t2 contains all other rows.
+
+=item table table::iterator({$reverse => 0})
+
+Returns a reference to a enumerator routine, which enables one to loop through each table row. If $reverse is set to 1, it will enumerate backward.  The convenience here is each row is fetch as a rowHashRef, so one can easily access row elements by name.
+
+    my $next = $t_product->iterator();
+    while (my $row = $next->()) {
+      # have access to a row as a hash reference, access row number by &$next(1);
+      $t_product->setElm($next->(1), 'ProductName', 'New! '.$row->{ProductName});
+    }
+
+In this example, each $row is fetched as a hash reference, so one can access the elements by $row->{colName}.
+Be aware that the elements in the hash is a copy of the original table elements, so modifying $row->{colName} does not modify the original table.  If table modification is intended, one needs to obtain the row index of the returned row.  $next->(1) call with a non-empty argument returns the row index of the record that was previously fetched with $next->().  In this example, one uses the row index to modify the original table.
 
 =item table table::each_group($colsToGroupBy, $funsToApply)
 
@@ -2937,6 +3106,8 @@ $cols1 and $cols2 are references to array of colIDs, where rows with the same el
 The implementation is hash-join, the running time should be linear with respect to the sum of number of rows in the two tables (assume both tables fit in memory).
 
 If the non-key columns of the two tables share the same name, the routine will fail, as the result table cannot contain two columns of the same name.  In 1.62, one can specify {renameCol=>1} as $argRef, so that the second column will be automatically renamed (with suffix _2) to avoid collision.
+
+If you would like to treat the NULLs in the key columns as empty string, set {NULLasEmpty => 1}.  If you do not want to treat NULLs as empty strings, but you still like the NULLs in two tables to be considered as equal (but not equal to ''), set {matchNULL => 1}.  Obviously if NULLasEmpty is set to 1, matchNULL will have no effect.
 
 =back
 

@@ -1,4 +1,47 @@
 Revision history for Perl extension Data::Table.
+
+1.68 Mon Aug  6 22:22:22 PDT 2012
+
+  Patch fromFileGetTopLines() and fromFileIsHeader(), which are used by fromFile(). Impact: minor.
+  Improve performance of fromFileGuessOS()
+  Improve fromFile(), fromCSV(), csv() to support using \r, \n within a CSV field.
+  
+  join() now supports {matchNULL => 1, NULLasEmpty => 1}, if one would like to treat NULL as empty string, or
+  treat NULL as equal (however, not equal to empty string). Both are set to 0 by default.
+  Suggested by Kyle Horton & Wilson Dave.
+
+  Remove inheritance from AutoLoader and Exporter.
+  Thanks to Brian Wightman
+
+  Thanks to Nicholas Andonakis for sharing his code, quite a few ideas in his package inspired the improvements below!
+
+  Add new shortcut methods: lastRow(), lastCol(), colName($colNumericIndex)
+    One can now write
+      foreach my $i (0..$t->lastRow)
+    instead of
+      foreach my $i (0..$t->nofRow-1)
+
+  Add iterator(), so that one can now write
+    my $next = $t_product->iterator();
+    while (my $row = $next->()) {
+      # have access to a row as a hash reference, access row number by &$next(1);
+      $t_product->setElm($next->(1), 'ProductName', 'New! '.$row->{ProductName});
+    }
+
+  addCol() can take the default value for the new column (first argument)
+  addRow() supports {addNewCol => 1}
+  moveCol() can take a $newColName.
+
+  setElm() can set a value for multiple cells, specified by ref to row array and col array
+  match_string(), match_pattern(), match_pattern_hash() also produce $parentTable->{MATCH}
+
+    # match returns all matched row ids in $t_product->{MATCH} (ref to row ID array)
+    $t_product->match_pattern_hash('$_{UnitPrice} > 20');
+    # create a new column, with 'No' as the default value
+    $t_product->addCol('No', 'IsExpensive');
+    # use $t_product->{MATCH} to set values for multiple Elements
+    $t_product->setElm($t_product->{MATCH}, 'IsExpensive', 'Yes');
+
 1.67 Wed Jul 25 11:47:23 PDT 2012
   Update Change.txt file to point out $keepRestCol defaults to 1 is only for group()
   For pivot(), $keepRestCol is still default to 0 as before.
