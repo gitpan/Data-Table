@@ -1,5 +1,27 @@
 Revision history for Perl extension Data::Table.
 
+1.69 Tue Jan 14 10:22:19 PST 2014
+
+  Fix a minor bug in pivot() related to colToSplitIsStringOrNumeric.
+
+  Integer column names are allowed. However, fromFile by default does not take numeric
+  column names, unless allowNumericHeader is set to 1.
+  Patch fromFile(), checkHeader(), colIndex(), fromFileIsHeader(), fromFileGetTopLines()
+  to support numeric column header.
+  An integer is first interpreted as a column name. Therefore, accessing a column by its
+  ordinal number may not be possible, if the number is used as a column name. In such case,
+  first fetch the corresponding column name and access by name.
+
+  Support file encoding methods in fromFile, fromCSV, fromTSV.
+  E.g., fromCSV("filename, 1, undef, {encoding=> 'UTF-8'})
+  UTF-8 is the default encoding, can be controlled by $Data::Table::DEFAULTS{ENCODING}.
+  Thanks to questions asked by Sergio Basto and Thomas Hofmann.
+
+  If an integer is passed to colIndex(), it is interpreted as string first for column lookup.
+  fromFile by default will allow numeric headers (but not all column headers can be numeric).
+
+  support skip_empty in melt();
+
 1.68 Mon Aug  6 22:22:22 PDT 2012
 
   Patch fromFileGetTopLines() and fromFileIsHeader(), which are used by fromFile(). Impact: minor.

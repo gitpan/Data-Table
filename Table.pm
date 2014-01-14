@@ -6,14 +6,16 @@ use vars qw($VERSION %DEFAULTS);
 use Carp;
 use Data::Dumper;
 
-$VERSION = '1.68';
+$VERSION = '1.69';
 %DEFAULTS = (
   "CSV_DELIMITER"=>',', # controls how to read/write CSV file
   "CSV_QUALIFIER"=>'"',
-  "OS"=>0
+  "OS"=>0,
   # operatoring system: 0 for UNIX (\n as linebreak), 1 for Windows
   # (\r\n as linebreak), 2 for MAC  (\r as linebreak)
   # this controls how to read and write CSV/TSV file
+  "ENCODING"=>'UTF-8'
+  # default encoding for fromFile, fromCSV, fromTSV
 );
 %Data::Table::TSV_ESC = ( '0'=>"\0", 'n'=>"\n", 't'=>"\t", 'r'=>"\r", 'b'=>"\b",
               "'"=>"'", '"'=>"\"", '\\'=>"\\" );
@@ -61,7 +63,7 @@ sub checkHeader {
   my $colHash = {};
   for (my $i = 0; $i < scalar @$header; $i++) {
     my $elm = $header->[$i];
-    confess "Invalid column name (all digits): $elm at column ".($i+1) unless ($elm =~ /\D/);
+    #warn "Column name: $elm at column ".($i+1)." is an integer, using an integer column name will mask the corresponding column index!" if ($elm =~ /^\d+$/);
     confess "Undefined column name (empty or all space) at column ".($i+1) unless $elm;
     #confess "Header name ".$colHash->{$elm}." appears more than once" if defined($colHash->{$elm});
     if (defined($colHash->{$elm})) {
@@ -76,12 +78,15 @@ sub checkHeader {
 # (also in column-based table)
 sub colIndex {
   my ($self, $colID) = @_;
-  if ($colID =~ /\D/) {
-    my $i = $self->{colHash}->{$colID};
-    return -1 unless defined($i);
-    return $i;
-  }
-  return $colID; # assume an index already
+  return $self->{colHash}->{$colID} if exists $self->{colHash}->{$colID};
+  return $colID if $colID =~ /^\d+$/;
+  return -1;
+  #if ($colID =~ /\D/) {
+  #  my $i = $self->{colHash}->{$colID};
+  #  return -1 unless defined($i);
+  #  return $i;
+  #}
+  #return $colID; # assume an index already
 }
 
 sub hasCol {
@@ -1253,7 +1258,7 @@ sub getOneLine {
 sub fromCSV {
   my ($name_or_handler, $includeHeader, $header, $arg_ref) = @_;
   $includeHeader = 1 unless defined($includeHeader);
-  my ($OS, $delimiter, $qualifier, $skip_lines, $skip_pattern) = ($Data::Table::DEFAULTS{OS}, $Data::Table::DEFAULTS{CSV_DELIMITER}, $Data::Table::DEFAULTS{CSV_QUALIFIER}, 0, undef);
+  my ($OS, $delimiter, $qualifier, $skip_lines, $skip_pattern, $encoding) = ($Data::Table::DEFAULTS{OS}, $Data::Table::DEFAULTS{CSV_DELIMITER}, $Data::Table::DEFAULTS{CSV_QUALIFIER}, 0, undef, $Data::Table::DEFAULTS{ENCODING});
   $OS = $arg_ref->{'OS'} if (defined($arg_ref) && defined($arg_ref->{'OS'}));
   # OS: 0 for UNIX (\n as linebreak), 1 for Windows (\r\n as linebreak)
   ###   2 for MAC  (\r as linebreak)
@@ -1262,6 +1267,7 @@ sub fromCSV {
     $qualifier = $arg_ref->{'qualifier'} if defined($arg_ref->{'qualifier'});
     $skip_lines = $arg_ref->{'skip_lines'} if (defined($arg_ref->{'skip_lines'}) && $arg_ref->{'skip_lines'}>0);
     $skip_pattern = $arg_ref->{'skip_pattern'} if defined($arg_ref->{'skip_pattern'});
+    $encoding = $arg_ref->{'encoding'} if defined($arg_ref->{'encoding'});
   }
   my @header;
   my $givenHeader = 0;
@@ -1269,15 +1275,7 @@ sub fromCSV {
     $givenHeader = 1;
     @header= @$header;
   }
-  my $isFileHandler=ref($name_or_handler) ne "";
-  my $SRC;
-  if ($isFileHandler) {
-    $SRC = $name_or_handler; # a file handler
-  } else {
-    open($SRC, $name_or_handler) or confess "Cannot open $name_or_handler to read";
-    #binmode $SRC;
-  }
-  binmode $SRC;
+  my $SRC=openFileWithEncoding($name_or_handler, $encoding);
   my @data = ();
   my $oldRowDelimiter=$/;
   my $newRowDelimiter=($OS==2)?"\r":(($OS==1)?"\r\n":"\n");
@@ -1329,7 +1327,7 @@ sub fromCSV {
     confess "Inconsistent column number at data entry: ".($#data+1) unless ($size==scalar @$one);
     push @data, $one;
   }
-  close($SRC) unless $isFileHandler;
+  close($SRC);
   $/=$oldRowDelimiter;
   return new Data::Table(\@data, \@header, 0);
 }
@@ -1413,13 +1411,14 @@ sub fromTSVi {
 
 sub fromTSV {
   my ($name_or_handler, $includeHeader, $header, $arg_ref) = @_;
-  my ($OS, $skip_lines, $skip_pattern, $transform_element) = ($Data::Table::DEFAULTS{OS}, 0, undef, 1);
+  my ($OS, $skip_lines, $skip_pattern, $transform_element, $encoding) = ($Data::Table::DEFAULTS{OS}, 0, undef, 1, $Data::Table::DEFAULTS{ENCODING});
   $OS = $arg_ref->{'OS'} if (defined($arg_ref) && defined($arg_ref->{'OS'}));
   # OS: 0 for UNIX (\n as linebreak), 1 for Windows (\r\n as linebreak)
   ###   2 for MAC  (\r as linebreak)
   $skip_lines = $arg_ref->{'skip_lines'} if (defined($arg_ref) && defined($arg_ref->{'skip_lines'}) && $arg_ref->{'skip_lines'}>0);
   $skip_pattern = $arg_ref->{'skip_pattern'} if defined($arg_ref->{'skip_pattern'});
   $transform_element = $arg_ref->{'transform_element'} if (defined($arg_ref->{'transform_element'}));
+  $encoding = $arg_ref->{'encoding'} if (defined($arg_ref->{'encoding'}));
   #my %ESC = ( '0'=>"\0", 'n'=>"\n", 't'=>"\t", 'r'=>"\r", 'b'=>"\b",
   #            "'"=>"'", '"'=>"\"", '\\'=>"\\" );
   ## what about \f? MySQL treats \f as f.
@@ -1433,14 +1432,7 @@ sub fromTSV {
     $givenHeader = 1;
     @header= @$header;
   }
-  my $isFileHandler=ref($name_or_handler) ne "";
-  my $SRC;
-  if ($isFileHandler) {
-    $SRC = $name_or_handler; # a file handler
-  } else {
-    open($SRC, $name_or_handler) or confess "Cannot open $name_or_handler to read";
-    binmode $SRC;
-  }
+  my $SRC=openFileWithEncoding($name_or_handler, $encoding);
   my @data = ();
   my $oldRowDelimiter=$/;
   my $newRowDelimiter=($OS==2)?"\r":(($OS==1)?"\r\n":"\n");
@@ -1504,7 +1496,7 @@ sub fromTSV {
     confess "Inconsistent column number at data entry: ".($#data+1) unless ($size==scalar @one);
     push @data, \@one;
   }
-  close($SRC) unless $isFileHandler;
+  close($SRC);
   $/=$oldRowDelimiter;
   return new Data::Table(\@data, \@header, 0);
 }
@@ -1676,9 +1668,11 @@ sub melt {
   my $variableColName = 'variable';
   my $valueColName = 'value';
   my $skip_NULL = 1;
+  my $skip_empty = 0;
   $variableColName = $arg_ref->{'variableColName'} if (defined($arg_ref) && defined($arg_ref->{'variableColName'}));
   $valueColName = $arg_ref->{'valueColName'} if (defined($arg_ref) && defined($arg_ref->{'valueColName'}));
   $skip_NULL = $arg_ref->{'skip_NULL'} if (defined($arg_ref) && defined($arg_ref->{'skip_NULL'}));
+  $skip_empty= $arg_ref->{'skip_empty'} if (defined($arg_ref) && defined($arg_ref->{'skip_empty'}));
   my @X = ();
   my %X = ();
   foreach my $x (@$keyCols) {
@@ -1719,6 +1713,7 @@ sub melt {
     my @key = @$row[@X];
     foreach my $y (@Y) {
       next if (!defined($row->[$y]) && $skip_NULL);
+      next if ($row->[$y] eq '' && $skip_empty);
       my @one = @key;
       push @one, $header[$y], $row->[$y];
       push @newRows, \@one;
@@ -1919,13 +1914,12 @@ sub pivot {
     %Y = ('(all)' => 1);
     $colToSplitIsStringOrNumeric = 1;
   }
-  foreach my $y (keys %Y) {
-    if ($y =~ /\D/ && $colToSplitIsStringOrNumeric == 0) {
-      $colToSplitIsStringOrNumeric = 1;
-      last;
-    } elsif ($y =~ /^\d+$/ && $colToSplitIsStringOrNumeric == 1) {
-      $colToSplitIsStringOrNumeric = 0;
-      last;
+  if ($colToSplitIsStringOrNumeric == 0) {
+    foreach my $y (keys %Y) {
+      if ($y =~ /\D/) {
+        $colToSplitIsStringOrNumeric = 1;
+        last;
+      }
     }
   }
   if ($colToSplitIsStringOrNumeric) {
@@ -2012,10 +2006,11 @@ sub fromFileGuessOS {
   # operatoring system: 0 for UNIX (\n as linebreak), 1 for Windows
   # (\r\n as linebreak), 2 for MAC  (\r as linebreak)
   my $qualifier = '';
+  my $encoding = $Data::Table::DEFAULTS{ENCODING};
   $qualifier = $arg_ref->{qualifier} if (defined($arg_ref) && exists $arg_ref->{qualifier});
+  $encoding = $arg_ref->{encoding} if (defined($arg_ref) && exists $arg_ref->{encoding});
   my ($len, $os)=(-1, -1);
-  open($SRC, $name) or confess "Cannot open $name to read";
-  binmode $SRC;
+  my $SRC=openFileWithEncoding($name, $encoding);
   #local($/)="\n";
   my $s = getOneLine($SRC, "\n", $qualifier); #<$SRC>;
   close($SRC);
@@ -2054,17 +2049,35 @@ sub fromFileGuessOS {
 #  return $os;
 }
 
+sub openFileWithEncoding {
+  my ($name_or_handler, $encoding) = @_;
+  my $isFileHandler=ref($name_or_handler) ne "";
+  my $SRC;
+  if ($isFileHandler) {
+    $SRC = $name_or_handler; # a file handler
+  } else {
+    open($SRC, $name_or_handler) or confess "Cannot open $name_or_handler to read";
+  }
+  if ($encoding) {
+    $encoding='UTF-8' if ($encoding =~ /^utf-?8$/i);
+    binmode($SRC, ":encoding($encoding)");
+  } else {
+    binmode $SRC;
+  }
+  return $SRC;
+}
+
 sub fromFileGetTopLines {
-  my ($name, $os, $numLines) = @_;
+  my ($name, $os, $numLines, $arg_ref) = @_;
   $os = fromFileGuessOS($name) unless defined($os);
   $numLines = 2 unless defined($numLines);
   my @OS=("\n", "\r\n", "\r"); 
   # operatoring system: 0 for UNIX (\n as linebreak), 1 for Windows
   # (\r\n as linebreak), 2 for MAC  (\r as linebreak)
-  my $SRC;
+  my $encoding = $Data::Table::DEFAULTS{ENCODING};
+  $encoding = $arg_ref->{encoding} if (defined($arg_ref) && exists $arg_ref->{encoding});
   my @lines=();
-  open($SRC, $name) or confess "Cannot open $name to read";
-  binmode $SRC;
+  my $SRC = openFileWithEncoding($name, $encoding);
   local($/)=$OS[$os];
   my $n_endl = length($OS[$os]);
   my $cnt=0;
@@ -2079,15 +2092,19 @@ sub fromFileGetTopLines {
 }
 
 sub fromFileIsHeader {
-  my ($s, $delimiter) = @_;
+  my ($s, $delimiter, $allowNumericHeader) = @_;
   $delimiter=$Data::Table::DEFAULTS{'CSV_DELIMITER'} unless defined($delimiter);
   return 0 if (!defined($s) || $s eq "" || $s=~ /$delimiter$/);
   my $fields=parseCSV($s, 0, {delimiter=>$delimiter});
+  my $allNumbers = 1;
   foreach my $name (@$fields) {
     return 0 unless $name;
     #next if $name=~/[^0-9.eE\-+]/;
-    return 0 if $name=~/^[-+]?[0-9]*\.?[0-9]+([eE][-+]?[0-9]+)?/;
+    return 0 if $name=~/^[-+]?[0-9]*\.?[0-9]+([eE][-+]?[0-9]+)?$/ && !$allowNumericHeader;
+    # modified, so that we allow some columns to be numeric, but not all columns
+    $allNumbers = 0 unless $name =~ /^[-+]?[0-9]*\.?[0-9]+([eE][-+]?[0-9]+)?$/;
   }
+  #return 0 if $allNumbers;
   return 1;
 }
 
@@ -2127,6 +2144,8 @@ sub fromFile {
   my $delimiter = undef;
   my $format = undef;
   my $qualifier = $Data::Table::DEFAULTS{CSV_QUALIFIER};
+  my $allowNumericHeader = 0;
+  my $encoding=$Data::Table::DEFAULTS{ENCODING};
 
   if (defined($arg_ref)) {
     $linesChecked = $arg_ref->{'linesChecked'} if defined($arg_ref->{'linesChecked'});
@@ -2135,20 +2154,23 @@ sub fromFile {
     $delimiter = $arg_ref->{'delimiter'};
     $format = $arg_ref->{'format'};
     $qualifier = $arg_ref->{'qualifier'} if defined($arg_ref->{'qualifier'});
+    $allowNumericHeader = $arg_ref->{'allowNumericHeader'};
+    $encoding = $arg_ref->{'encoding'};
   }
+
   $qualifier = '' if ($format and uc($format) eq 'TSV');
   unless (defined($os)) {
-    $os = fromFileGuessOS($name, {qualifier=>$qualifier});
+    $os = fromFileGuessOS($name, {qualifier=>$qualifier, encoding=>$encoding});
     $arg_ref->{'OS'}=$os;
   }
-  my @S = fromFileGetTopLines($name, $os, $linesChecked);
+  my @S = fromFileGetTopLines($name, $os, $linesChecked, {encoding=>$encoding});
   return undef unless scalar @S;
   unless (defined($delimiter)) {
     $delimiter = fromFileGuessDelimiter(\@S);
     $arg_ref->{'delimiter'} = $delimiter;
   }
   unless (defined($hasHeader)) {
-    $hasHeader = fromFileIsHeader($S[0], $delimiter);
+    $hasHeader = fromFileIsHeader($S[0], $delimiter, $allowNumericHeader);
   }
   my $t = undef;
   #print ">>>". join("\n", @S)."\n";
@@ -2423,7 +2445,7 @@ Conventions for local variables:
 create a new table.
 It returns a table object upon success, undef otherwise.
 $data: points to the spreadsheet data.
-$header: points to an array of column names. A column name must have at least one non-digit character.
+$header: points to an array of column names. Before version 1.69, a column name must have at least one non-digit character. Since verison 1.69, this is relaxed. Although integer and numeric column names can now be accepted, when accessing a column by integer, it is first interpreted as a column name.
 $type: 0 or 1 for row-based/column-based spreadsheet. 
 $enforceCheck: 1/0 to turn on/off initial checking on the size of each row/column to make sure the data arguement indeed points to a valid structure.
 In 1.63, we introduce constants Data::Table::ROW_BASED and Data::Table::COL_BASED as synonyms for $type.  To create an empty Data::Table, use new Data::Table([], [], Data::Table::ROW_BASED);
@@ -2444,7 +2466,7 @@ If $arg_ref->{useRowMask} is set to 1, $rowIdcsRef is a true/false row mask arra
 make a clone of the original.
 It return a table object, equivalent to table::subTable(undef,undef).
 
-=item table Data::Table::fromCSV ($name_or_handler, $includeHeader = 1, $header = ["col1", ... ], {OS=>$Data::Table::DEFAULTS{'OS'}, delimiter=>$Data::Table::DEFAULTS{'CSV_DELIMITER'}, qualifier=>$Data::Table::DEFAULTS{'CSV_QUALIFIER'}, skip_lines=>0, skip_pattern=>undef})
+=item table Data::Table::fromCSV ($name_or_handler, $includeHeader = 1, $header = ["col1", ... ], {OS=>$Data::Table::DEFAULTS{'OS'}, delimiter=>$Data::Table::DEFAULTS{'CSV_DELIMITER'}, qualifier=>$Data::Table::DEFAULTS{'CSV_QUALIFIER'}, skip_lines=>0, skip_pattern=>undef, encoding=>$Data::Table::DEFAULTS{'ENCODING'}})
 
 create a table from a CSV file.
 return a table object.
@@ -2458,6 +2480,8 @@ optional name argument delimiter and qualifier let user replace comma and double
 optional name argument skip_lines let you specify how many lines in the csv file should be skipped, before the data are interpretted.
 
 optional name argument skip_pattern let you specify a regular expression. Lines that match the regular expression will be skipped.
+
+optional name argument encoding let you specify an encoding method of the csv file.  This option is added to fromCSV, fromTSV, fromFile since version 1.69.
 
 The following example reads a DOS format CSV file and writes a MAC format:
 
@@ -2484,11 +2508,14 @@ The following example reads bbb.csv file (included in the package) by skipping t
 
   $t = Data::Table::fromCSV("bbb.csv", 1, undef, {skip_lines=>1, delimiter=>':', skip_pattern=>'^\s*#'});
 
+Use the optional name argument encoding to specify file encoding method.
+  $t = Data::Table::fromCSV("bbb.csv", 1, undef, {encoding=>'UTF-8'});
+
 =item table table::fromCSVi ($name, $includeHeader = 1, $header = ["col1", ... ])
 
 Same as Data::Table::fromCSV. However, this is an instant method (that's what 'i' stands for), which can be inherited.
 
-=item table Data::Table::fromTSV ($name, $includeHeader = 1, $header = ["col1", ... ], {OS=>$Data::Table::DEFAULTS{'OS'}, skip_lines=>0, skip_pattern=>undef, transform_element=>1})
+=item table Data::Table::fromTSV ($name, $includeHeader = 1, $header = ["col1", ... ], {OS=>$Data::Table::DEFAULTS{'OS'}, skip_lines=>0, skip_pattern=>undef, transform_element=>1, encoding=>$Data::Table::DEFAULTS{'ENCODING'}})
 
 create a table from a TSV file.
 return a table object.
@@ -2504,6 +2531,8 @@ optional name argument skip_pattern let you specify a regular expression. Lines 
 
 optional name argument transform_element let you switch on/off \t to tab, \N to undef (etc.) transformation. See TSV FORMAT for details. However, elements are always transformed when export table to tsv format, because not escaping an element containing a tab will be disasterous.
 
+optional name arugment encoding enables one to provide an encoding method when open the tsv file.
+
 See similar examples under Data::Table::fromCSV;
 
 Note: read "TSV FORMAT" section for details.
@@ -2512,30 +2541,30 @@ Note: read "TSV FORMAT" section for details.
 
 Same as Data::Table::fromTSV. However, this is an instant method (that's what 'i' stands for), which can be inherited.
 
-=item table Data::Table::fromFile ($file_name, $arg_ref = {linesChecked=>2})
+=item table Data::Table::fromFile ($file_name, $arg_ref = {linesChecked=>2, allowNumericHeader=>0, encoding=>$Data::Table::DEFAULTS{'ENCODING'}})
 
 create a table from a text file.
 return a table object.
 $file_name: the file name (cannot take a file handler).
 linesChecked: the first number of lines used for guessing the input format. The delimiter will have to produce the same number of columns for these lines. By default only check the first 2 lines, 0 means all lines in the file.
-$arg_ref can take additional parameters, such as OS, has_header, delimiter, transform_element, etc.
+$arg_ref can take additional parameters, such as OS, has_header, delimiter, transform_element, etc. Encoding allows one to specify encoding methods used to open the file, which defaults to UTF-8.
 
 fromFile is added after version 1.51. It relies on the following new methods to automatically figure out the correct file format in order to call fromCSV or fromTSV internally:
 
-  fromFileGuessOS($file_name)
+  fromFileGuessOS($file_name, {encoding=>'UTF-8'})
     returns integer, 0 for UNIX, 1 for PC, 2 for MAC
-  fromFileGetTopLines($file_name, $os, $lineNumber) # $os defaults to fromFileGuessOS($file_name), if not specified
+  fromFileGetTopLines($file_name, $os, $lineNumber, {encoding=>'UTF-8'}) # $os defaults to fromFileGuessOS($file_name), if not specified
     returns an array of strings, each string represents each row with linebreak removed.
   fromFileGuessDelimiter($lineArrayRef)       # guess delimiter from ",", "\t", ":";
     returns the guessed delimiter string.
-  fromFileIsHeader($line_concent, $delimiter) # $delimiter defaults to $Data::Table::DEFAULTS{'CSV_DELIMITER'}
+  fromFileIsHeader($line_concent, $delimiter, $allowNumericHeader) # $delimiter defaults to $Data::Table::DEFAULTS{'CSV_DELIMITER'}
     returns 1 or 0.
 
 It first ask fromFileGuessOS to figure out which OS (UNIX, PC or MAC) generated the input file. The fetch the first linesChecked lines using fromFileGetTopLines. It then guesses the best delimiter using fromFileGuessDelimiter, then it checks if the first line looks like a column header row using fromFileIsHeader. Since fromFileGuessOS and fromFileGetTopLines needs to open/close the input file, these methods can only take file name, not file handler. If user specify formatting parameters in $arg_ref, the routine will skip the corresponding guess work. At the end, fromFile simply calls either fromCSV or fromTSV with $arg_ref forwarded. So if you call fromFile({transform_element=>0}) on a TSV file, transform_elment will be passed onto fromTSV calls internally.
 
 fromFileGuessOS finds the linebreak that gives shortest first line (in the priority of UNIX, PC, MAC upon tie).
 fromFileGuessDelimiter works based on the assumption that the correct delimiter will produce equal number of columns for the given rows. If multiple matches, it chooses the delimiter that gives maximum number of columns. If none matches, it returns the default delimiter.
-fromFileIsHeader works based on the assumption that no column header can be empty or pure numeric value.
+fromFileIsHeader works based on the assumption that no column header can be empty or numeric values.  However, if we allow numeric column names (especially integer column names), set {allowNumericHeader => 1}
 
 =item table Data::Table::fromSQL ($dbh, $sql, $vars)
 
@@ -2571,6 +2600,8 @@ h can be inherited.
 
 translate a column name into its numerical position, the first column has index 0 as in as any perl array.
 return -1 for invalid column names.
+
+Since 1.69, we allow integer to be used as a column header.  The integer $colID will first be checked against column names, if matched, the corresponding column index is returned. E.g., if column name for the 3rd column is "1", colIndex(1) will return 2 instead of 1! In such case, if one need to access the second column, one has to access it by column name, i.e., $t->col(($t->header)[1]).
 
 =item int table::nofCol
 
@@ -2984,7 +3015,7 @@ The idea of melt() and cast() are taken from Hadley Wickham's Reshape package in
 A table is first melt() into a tall-skiny format, where measurements are stored in the format of a variable-value pair per row.
 Such a format can then be easily cast() into various contingency tables.
 
-One needs to specify the columns consisting of primary keys, columns that are consider as variable columns.  The output variable column is named 'variable' unless specified by $arg_ref{variableColName}.  The output value column is named 'value', unless specified in $arg_ref{valueColName}.  By default NULL values are not output, unless $arg_ref{skip_NULL} is set to false.
+One needs to specify the columns consisting of primary keys, columns that are consider as variable columns.  The output variable column is named 'variable' unless specified by $arg_ref{variableColName}.  The output value column is named 'value', unless specified in $arg_ref{valueColName}.  By default NULL values are not output, unless $arg_ref{skip_NULL} is set to false.  By default empty string values are kept, unless one sets skip_empty to `.
 
   For each object (id), we measure variable x1 and x2 at two time points
   $t = new Data::Table([[1,1,5,6], [1,2,3,5], [2,1,6,1], [2,2,2,4]], ['id','time','x1','x2'], Data::Table::ROW_BASED);

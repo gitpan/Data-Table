@@ -302,7 +302,7 @@ see table::fromCSV, table::csv, table::fromTSV, table::tsv for details.</p>
 <p>create a new table.
 It returns a table object upon success, undef otherwise.
 $data: points to the spreadsheet data.
-$header: points to an array of column names. A column name must have at least one non-digit character.
+$header: points to an array of column names. Before version 1.69, a column name must have at least one non-digit character. Since verison 1.69, this is relaxed. Although integer and numeric column names can now be accepted, when accessing a column by integer, it is first interpreted as a column name.
 $type: 0 or 1 for row-based/column-based spreadsheet. 
 $enforceCheck: 1/0 to turn on/off initial checking on the size of each row/column to make sure the data arguement indeed points to a valid structure.
 In 1.63, we introduce constants Data::Table::ROW_BASED and Data::Table::COL_BASED as synonyms for $type.  To create an empty Data::Table, use new Data::Table([], [], Data::Table::ROW_BASED);</p>
@@ -325,7 +325,7 @@ If $arg_ref-&gt;{useRowMask} is set to 1, $rowIdcsRef is a true/false row mask a
 <p>make a clone of the original.
 It return a table object, equivalent to table::subTable(undef,undef).</p>
 </dd>
-<dt><strong><a name="fromcsv" class="item">table Data::Table::fromCSV ($name_or_handler, $includeHeader = 1, $header = [&quot;col1&quot;, ... ], {OS=&gt;$Data::Table::DEFAULTS{'OS'}, delimiter=&gt;$Data::Table::DEFAULTS{'CSV_DELIMITER'}, qualifier=&gt;$Data::Table::DEFAULTS{'CSV_QUALIFIER'}, skip_lines=&gt;0, skip_pattern=&gt;undef})</a></strong></dt>
+<dt><strong><a name="fromcsv" class="item">table Data::Table::fromCSV ($name_or_handler, $includeHeader = 1, $header = [&quot;col1&quot;, ... ], {OS=&gt;$Data::Table::DEFAULTS{'OS'}, delimiter=&gt;$Data::Table::DEFAULTS{'CSV_DELIMITER'}, qualifier=&gt;$Data::Table::DEFAULTS{'CSV_QUALIFIER'}, skip_lines=&gt;0, skip_pattern=&gt;undef, encoding=&gt;$Data::Table::DEFAULTS{'ENCODING'}})</a></strong></dt>
 
 <dd>
 <p>create a table from a CSV file.
@@ -337,6 +337,7 @@ optional named argument OS specifies under which operating system the CSV file w
 <p>optional name argument delimiter and qualifier let user replace comma and double-quote by other meaningful single characters. &lt;b&gt;Exception&lt;/b&gt;: if the delimiter or the qualifier is a special symbol in regular expression, you must escape it by '\'. For example, in order to use pipe symbol as the delimiter, you must specify the delimiter as '\|'.</p>
 <p>optional name argument skip_lines let you specify how many lines in the csv file should be skipped, before the data are interpretted.</p>
 <p>optional name argument skip_pattern let you specify a regular expression. Lines that match the regular expression will be skipped.</p>
+<p>optional name argument encoding let you specify an encoding method of the csv file.  This option is added to fromCSV, fromTSV, fromFile since version 1.69.</p>
 <p>The following example reads a DOS format CSV file and writes a MAC format:</p>
 <pre>
   $t = Data::Table:fromCSV('A_DOS_CSV_FILE.csv', 1, undef, {OS=&gt;1});
@@ -359,13 +360,15 @@ optional named argument OS specifies under which operating system the CSV file w
 <p>The following example reads bbb.csv file (included in the package) by skipping the first line (skip_lines=&gt;1), then treats any line that starts with '#' (or space comma) as comments (skip_pattern=&gt;'^\s*#'), use ':' as the delimiter.</p>
 <pre>
   $t = Data::Table::fromCSV(&quot;bbb.csv&quot;, 1, undef, {skip_lines=&gt;1, delimiter=&gt;':', skip_pattern=&gt;'^\s*#'});</pre>
+<p>Use the optional name argument encoding to specify file encoding method.
+  $t = Data::Table::fromCSV(&quot;bbb.csv&quot;, 1, undef, {encoding=&gt;'UTF-8'});</p>
 </dd>
 <dt><strong><a name="fromcsvi" class="item">table table::fromCSVi ($name, $includeHeader = 1, $header = [&quot;col1&quot;, ... ])</a></strong></dt>
 
 <dd>
 <p>Same as Data::Table::fromCSV. However, this is an instant method (that's what 'i' stands for), which can be inherited.</p>
 </dd>
-<dt><strong><a name="fromtsv" class="item">table Data::Table::fromTSV ($name, $includeHeader = 1, $header = [&quot;col1&quot;, ... ], {OS=&gt;$Data::Table::DEFAULTS{'OS'}, skip_lines=&gt;0, skip_pattern=&gt;undef, transform_element=&gt;1})</a></strong></dt>
+<dt><strong><a name="fromtsv" class="item">table Data::Table::fromTSV ($name, $includeHeader = 1, $header = [&quot;col1&quot;, ... ], {OS=&gt;$Data::Table::DEFAULTS{'OS'}, skip_lines=&gt;0, skip_pattern=&gt;undef, transform_element=&gt;1, encoding=&gt;$Data::Table::DEFAULTS{'ENCODING'}})</a></strong></dt>
 
 <dd>
 <p>create a table from a TSV file.
@@ -378,6 +381,7 @@ C and 2 for MAC. If not specified, $Data::Table::DEFAULTS{'OS'} is used, which d
 <p>optional name argument skip_lines let you specify how many lines in the csv file should be skipped, before the data are interpretted.</p>
 <p>optional name argument skip_pattern let you specify a regular expression. Lines that match the regular expression will be skipped.</p>
 <p>optional name argument transform_element let you switch on/off \t to tab, \N to undef (etc.) transformation. See TSV FORMAT for details. However, elements are always transformed when export table to tsv format, because not escaping an element containing a tab will be disasterous.</p>
+<p>optional name arugment encoding enables one to provide an encoding method when open the tsv file.</p>
 <p>See similar examples under Data::Table::fromCSV;</p>
 <p>Note: read &quot;TSV FORMAT&quot; section for details.</p>
 </dd>
@@ -386,28 +390,28 @@ C and 2 for MAC. If not specified, $Data::Table::DEFAULTS{'OS'} is used, which d
 <dd>
 <p>Same as Data::Table::fromTSV. However, this is an instant method (that's what 'i' stands for), which can be inherited.</p>
 </dd>
-<dt><strong><a name="fromfile" class="item">table Data::Table::fromFile ($file_name, $arg_ref = {linesChecked=&gt;2})</a></strong></dt>
+<dt><strong><a name="fromfile" class="item">table Data::Table::fromFile ($file_name, $arg_ref = {linesChecked=&gt;2, allowNumericHeader=&gt;0, encoding=&gt;$Data::Table::DEFAULTS{'ENCODING'}})</a></strong></dt>
 
 <dd>
 <p>create a table from a text file.
 return a table object.
 $file_name: the file name (cannot take a file handler).
 linesChecked: the first number of lines used for guessing the input format. The delimiter will have to produce the same number of columns for these lines. By default only check the first 2 lines, 0 means all lines in the file.
-$arg_ref can take additional parameters, such as OS, has_header, delimiter, transform_element, etc.</p>
+$arg_ref can take additional parameters, such as OS, has_header, delimiter, transform_element, etc. Encoding allows one to specify encoding methods used to open the file, which defaults to UTF-8.</p>
 <p>fromFile is added after version 1.51. It relies on the following new methods to automatically figure out the correct file format in order to call fromCSV or fromTSV internally:</p>
 <pre>
-  fromFileGuessOS($file_name)
+  fromFileGuessOS($file_name, {encoding=&gt;'UTF-8'})
     returns integer, 0 for UNIX, 1 for PC, 2 for MAC
-  fromFileGetTopLines($file_name, $os, $lineNumber) # $os defaults to fromFileGuessOS($file_name), if not specified
+  fromFileGetTopLines($file_name, $os, $lineNumber, {encoding=&gt;'UTF-8'}) # $os defaults to fromFileGuessOS($file_name), if not specified
     returns an array of strings, each string represents each row with linebreak removed.
   fromFileGuessDelimiter($lineArrayRef)       # guess delimiter from &quot;,&quot;, &quot;\t&quot;, &quot;:&quot;;
     returns the guessed delimiter string.
-  fromFileIsHeader($line_concent, $delimiter) # $delimiter defaults to $Data::Table::DEFAULTS{'CSV_DELIMITER'}
+  fromFileIsHeader($line_concent, $delimiter, $allowNumericHeader) # $delimiter defaults to $Data::Table::DEFAULTS{'CSV_DELIMITER'}
     returns 1 or 0.</pre>
 <p>It first ask fromFileGuessOS to figure out which OS (UNIX, PC or MAC) generated the input file. The fetch the first linesChecked lines using fromFileGetTopLines. It then guesses the best delimiter using fromFileGuessDelimiter, then it checks if the first line looks like a column header row using fromFileIsHeader. Since fromFileGuessOS and fromFileGetTopLines needs to open/close the input file, these methods can only take file name, not file handler. If user specify formatting parameters in $arg_ref, the routine will skip the corresponding guess work. At the end, fromFile simply calls either fromCSV or fromTSV with $arg_ref forwarded. So if you call fromFile({transform_element=&gt;0}) on a TSV file, transform_elment will be passed onto fromTSV calls internally.</p>
 <p>fromFileGuessOS finds the linebreak that gives shortest first line (in the priority of UNIX, PC, MAC upon tie).
 fromFileGuessDelimiter works based on the assumption that the correct delimiter will produce equal number of columns for the given rows. If multiple matches, it chooses the delimiter that gives maximum number of columns. If none matches, it returns the default delimiter.
-fromFileIsHeader works based on the assumption that no column header can be empty or pure numeric value.</p>
+fromFileIsHeader works based on the assumption that no column header can be empty or numeric values.  However, if we allow numeric column names (especially integer column names), set {allowNumericHeader =&gt; 1}</p>
 </dd>
 <dt><strong><a name="fromsql" class="item">table Data::Table::fromSQL ($dbh, $sql, $vars)</a></strong></dt>
 
@@ -444,6 +448,7 @@ h can be inherited.</p>
 <dd>
 <p>translate a column name into its numerical position, the first column has index 0 as in as any perl array.
 return -1 for invalid column names.</p>
+<p>Since 1.69, we allow integer to be used as a column header.  The integer $colID will first be checked against column names, if matched, the corresponding column index is returned. E.g., if column name for the 3rd column is &quot;1&quot;, <a href="#colindex"><code>colIndex(1)</code></a> will return 2 instead of 1! In such case, if one need to access the second column, one has to access it by column name, i.e., $t-&gt;col(($t-&gt;header)[1]).</p>
 </dd>
 <dt><strong><a name="int_table_nofcol" class="item">int table::nofCol</a></strong></dt>
 
@@ -865,7 +870,7 @@ If $colsToGroupBy is left as undef, all rows are treated as one group.  If $colT
 <p>The idea of <a href="#melt"><code>melt()</code></a> and <a href="#cast"><code>cast()</code></a> are taken from Hadley Wickham's Reshape package in R language.
 A table is first <a href="#melt"><code>melt()</code></a> into a tall-skiny format, where measurements are stored in the format of a variable-value pair per row.
 Such a format can then be easily <a href="#cast"><code>cast()</code></a> into various contingency tables.</p>
-<p>One needs to specify the columns consisting of primary keys, columns that are consider as variable columns.  The output variable column is named 'variable' unless specified by $arg_ref{variableColName}.  The output value column is named 'value', unless specified in $arg_ref{valueColName}.  By default NULL values are not output, unless $arg_ref{skip_NULL} is set to false.</p>
+<p>One needs to specify the columns consisting of primary keys, columns that are consider as variable columns.  The output variable column is named 'variable' unless specified by $arg_ref{variableColName}.  The output value column is named 'value', unless specified in $arg_ref{valueColName}.  By default NULL values are not output, unless $arg_ref{skip_NULL} is set to false.  By default empty string values are kept, unless one sets skip_empty to `.</p>
 <pre>
   For each object (id), we measure variable x1 and x2 at two time points
   $t = new Data::Table([[1,1,5,6], [1,2,3,5], [2,1,6,1], [2,2,2,4]], ['id','time','x1','x2'], Data::Table::ROW_BASED);
