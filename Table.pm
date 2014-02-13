@@ -6,7 +6,7 @@ use vars qw($VERSION %DEFAULTS);
 use Carp;
 use Data::Dumper;
 
-$VERSION = '1.69';
+$VERSION = '1.70';
 %DEFAULTS = (
   "CSV_DELIMITER"=>',', # controls how to read/write CSV file
   "CSV_QUALIFIER"=>'"',
@@ -2001,7 +2001,6 @@ sub pivot {
 
 sub fromFileGuessOS {
   my ($name, $arg_ref) = @_;
-  my $SRC;
   my @OS=("\n", "\r\n", "\r");
   # operatoring system: 0 for UNIX (\n as linebreak), 1 for Windows
   # (\r\n as linebreak), 2 for MAC  (\r as linebreak)
@@ -2058,6 +2057,8 @@ sub openFileWithEncoding {
   } else {
     open($SRC, $name_or_handler) or confess "Cannot open $name_or_handler to read";
   }
+  # check if Perl version is recent enough to support encoding
+  $encoding ='' if (!$^V or $^V lt v5.8.1);
   if ($encoding) {
     $encoding='UTF-8' if ($encoding =~ /^utf-?8$/i);
     binmode($SRC, ":encoding($encoding)");

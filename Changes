@@ -1,4 +1,9 @@
 Revision history for Perl extension Data::Table.
+1.70 Sat Jan 25 06:44:12 PST 2014
+  Minor patch to 1.69, as encoding function is only reliably supported by Perl newer than v5.8.1.
+  Patch internal method openFileWithEncoding(), so that older Perl version will not give an error.
+
+  Fixed a warning in fromFileGuessOS, introduced in 1.69.
 
 1.69 Tue Jan 14 10:22:19 PST 2014
 
